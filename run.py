@@ -2,11 +2,17 @@ import time
 
 import torch
 import torch.nn as nn
+from importlib.metadata import version
 
 from bigptq import BRAGPTQ
 from binary import Binarization
 from modelutils import find_layers
+from prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_pruner_zero
 
+print('torch', version('torch'))
+print('transformers', version('transformers'))
+print('accelerate', version('accelerate'))
+print('# of gpus: ', torch.cuda.device_count())
 
 def get_model(model):
     import torch
@@ -264,6 +270,10 @@ if __name__ == "__main__":
         "ablate_mag_seq", "ablate_wanda_seq", "ablate_mag_iter", 
         "ablate_wanda_iter", "search", "pruner-zero", "ablate_prunerzero_seq", "ablate_prunerzero_iter"]
     )
+    parser.add_argument(
+        "--sparsity_type", type=str, choices=["unstructured", "4:8", "2:4"]
+    )
+
 
     args = parser.parse_args()
     groupsize = args.blocksize
@@ -290,6 +300,7 @@ if __name__ == "__main__":
         print("quantization time:", time.time() - tick, "s")
         
         # prune after quant
+        if ar
         
 
     if args.save:

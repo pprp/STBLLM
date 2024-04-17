@@ -6,7 +6,7 @@ from utils.sparsegpt import SparseGPT
 from utils.layerwrapper import WrappedGPT
 from datautils import get_loaders 
 
-from utils.ablate import AblateGPT 
+from utils.ablate import AblateGPT
 # from autozc.structures.tree_engine import GPTree
 
 def find_layers(module, layers=[nn.Linear], name=''):
