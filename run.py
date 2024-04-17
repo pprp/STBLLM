@@ -30,7 +30,7 @@ def get_model(model):
         model.seqlen = model.config.max_position_embeddings
     elif "llama" in model:
         from transformers import LlamaForCausalLM
-        model = LlamaForCausalLM.from_pretrained(model, torch_dtype="auto")
+        model = LlamaForCausalLM.from_pretrained(model, torch_dtype="auto", device_map="auto")
         model.seqlen = 2048
     return model
 
@@ -235,12 +235,6 @@ if __name__ == "__main__":
         choices=["magnitude", "hessian"],
     )
     parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda:0",
-        help="set the device to use for quantization.",
-    )
-    parser.add_argument(
         "--disable_gptq",
         action="store_true",
         help="disable GPTQ for quantization.",
@@ -280,7 +274,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     groupsize = args.blocksize
 
-    device = args.device
     save_title = f"{args.model}_{args.dataset}_{args.low_quant_method}_{groupsize}_{args.salient_metric}"
     save_file = "./output/" + save_title.replace("/", "_") + ".pt"
     
@@ -300,9 +293,10 @@ if __name__ == "__main__":
         model.eval()
         print(f"Available CUDA devices: {torch.cuda.device_count()}")
         
-        device = torch.device(args.device)
-        model.to(device)
-        if "30b" in args.model or "65b" in args.model or "70b" in args.model or "33b" in args.model: # for 30b and 65b we use device_map to load onto multiple A6000 GPUs, thus the processing here.
+        if "30b" in args.model or "65b" in args.model or \
+            "70b" in args.model or "33b" in args.model or \
+                "7b" in args.model: 
+                # for 30b and 65b we use device_map to load onto multiple A6000 GPUs, thus the processing here.
             device = model.hf_device_map["lm_head"]
         print("use device ", device)
         
