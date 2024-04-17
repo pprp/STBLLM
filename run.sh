@@ -17,9 +17,9 @@
 #     --sparsity_type 4:8 \
 #     --prune_method wanda 
 
-CUDA_VISIBLE_DEVICES=1 python3 run.py /home/dongpeijie/share/llama-2-7b wikitext2 braq --blocksize 128 \
+CUDA_LAUNCH_BLOCKING=1 python3 run.py /home/dongpeijie/share/llama-2-7b wikitext2 braq --blocksize 128 \
     --salient_metric hessian \
-    --device "cuda:0" \
+    --device "cuda:1" \
     --sparsity_ratio 0.5 \
     --sparsity_type 4:8 \
     --prune_method wanda 

@@ -135,7 +135,6 @@ class BRAGPTQ:
 
                     Q1[:, i] = q
                     Losses1[:, i] = (w - q) ** 2 / d**2
-                    # breakpoint()
 
                     err1 = (w - q) / d
                     Err1[:, i] = err1

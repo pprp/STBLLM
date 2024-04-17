@@ -298,9 +298,10 @@ if __name__ == "__main__":
         model = get_model(args.model)
         tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
         model.eval()
+        print(f"Available CUDA devices: {torch.cuda.device_count()}")
+        
+        device = torch.device(args.device)
         model.to(device)
-
-        device = torch.device("cuda:0")
         if "30b" in args.model or "65b" in args.model or "70b" in args.model or "33b" in args.model: # for 30b and 65b we use device_map to load onto multiple A6000 GPUs, thus the processing here.
             device = model.hf_device_map["lm_head"]
         print("use device ", device)

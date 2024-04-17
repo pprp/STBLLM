@@ -83,7 +83,7 @@ def prepare_calibration_input(model, dataloader, device):
             cache['position_ids'] = kwargs['position_ids']
             raise ValueError
     layers[0] = Catcher(layers[0])
-    breakpoint()
+
     for batch in dataloader:
         try:
             model(batch[0].to(device))
@@ -145,7 +145,6 @@ def prune_wanda(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0
     print("dataset loading complete")
     with torch.no_grad():
         inps, outs, attention_mask, position_ids = prepare_calibration_input(model, dataloader, device)
-        breakpoint()
 
     layers = model.model.layers
     for i in range(len(layers)):
