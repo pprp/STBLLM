@@ -24,7 +24,6 @@ def get_model(model):
         model.seqlen = model.config.max_position_embeddings
     elif "llama" in model:
         from transformers import LlamaForCausalLM
-
         model = LlamaForCausalLM.from_pretrained(model, torch_dtype="auto")
         model.seqlen = 2048
     return model
@@ -117,6 +116,7 @@ def quant_sequential(model, dataloader, dev):
     for i in range(len(layers)):
         layer = layers[i].to(dev)
 
+        # Find module of Conv or Linear;
         subset = find_layers(layer)
 
         gptq = {}
@@ -125,11 +125,14 @@ def quant_sequential(model, dataloader, dev):
                 not (args.minlayer <= i < args.maxlayer and args.quant_only in name)
             ) == (not args.invert):
                 continue
+            # 实现对神经网络权重的二值化处理，二值化是一种常见的网络压缩和加速技术
             braq_quantizer = Binarization(
                 subset[name].weight,
                 method=args.low_quant_method,
                 groupsize=groupsize,
             )
+            # 使用 quantizer 对神经网络权重进行量化
+            # 计算hessian矩阵的逆矩阵
             gptq[name] = BRAGPTQ(
                 subset[name],
                 braq_quantizer,
@@ -256,6 +259,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--log_wandb", action="store_true", help="Whether to log to wandb."
     )
+    parser.add_argument(
+        "--prune_method", type=str, choices=["magnitude", "wanda", "sparsegpt", 
+        "ablate_mag_seq", "ablate_wanda_seq", "ablate_mag_iter", 
+        "ablate_wanda_iter", "search", "pruner-zero", "ablate_prunerzero_seq", "ablate_prunerzero_iter"]
+    )
 
     args = parser.parse_args()
     groupsize = args.blocksize
@@ -263,6 +271,7 @@ if __name__ == "__main__":
     device = args.device
     save_title = f"{args.model}_{args.dataset}_{args.low_quant_method}_{groupsize}_{args.salient_metric}"
     save_file = "./output/" + save_title.replace("/", "_") + ".pt"
+    
     if args.load_quantized:
         model = get_model(save_file)
         model.eval()
@@ -279,6 +288,9 @@ if __name__ == "__main__":
         )
         quant_sequential(model, dataloader, device)
         print("quantization time:", time.time() - tick, "s")
+        
+        # prune after quant
+        
 
     if args.save:
         save_path = os.path.dirname(save_file)

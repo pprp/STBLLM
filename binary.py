@@ -116,13 +116,11 @@ class Binarization(nn.Module):
                     tmp = shape[1] if len(shape) != 3 else shape[2]
                 scale = scale.repeat(tmp)
                 zero = zero.repeat(tmp)
-
             if weight:
                 shape = [-1] + [1] * (len(shape) - 1)
                 scale = scale.reshape(shape)
                 zero = zero.reshape(shape)
             w = normal_quantize(w, scale, zero, maxq)
-
         elif self.method=="prune":
             return torch.zeros_like(w)
         return w

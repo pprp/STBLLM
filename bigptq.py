@@ -51,7 +51,7 @@ class BRAGPTQ:
         self.nsamples += tmp
         inp = math.sqrt(2 / self.nsamples) * inp.float()
         self.H += inp.matmul(inp.t())
-        # breakpoint()
+
 
     def fasterquant(self,
                     blocksize=128, 
