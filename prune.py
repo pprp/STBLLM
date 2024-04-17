@@ -64,7 +64,7 @@ def prepare_calibration_input(model, dataloader, device):
     layers = model.model.layers
 
     # dev = model.hf_device_map["model.embed_tokens"]
-    if "model.embed_tokens" in model.hf_device_map:
+    if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
         device = model.hf_device_map["model.embed_tokens"]
 
     dtype = next(iter(model.parameters())).dtype
@@ -83,6 +83,7 @@ def prepare_calibration_input(model, dataloader, device):
             cache['position_ids'] = kwargs['position_ids']
             raise ValueError
     layers[0] = Catcher(layers[0])
+    breakpoint()
     for batch in dataloader:
         try:
             model(batch[0].to(device))
@@ -133,10 +134,18 @@ def prune_wanda(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0
     model.config.use_cache = False 
 
     print("loading calibdation data")
-    dataloader, _ = get_loaders("c4",nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
+    # dataloader, _ = get_loaders("c4",nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
+    dataloader, _ = get_loaders(
+        args.dataset,
+        nsamples=args.nsamples,
+        seed=args.seed,
+        model=args.model,
+        seqlen=model.seqlen,
+    )
     print("dataset loading complete")
     with torch.no_grad():
         inps, outs, attention_mask, position_ids = prepare_calibration_input(model, dataloader, device)
+        breakpoint()
 
     layers = model.model.layers
     for i in range(len(layers)):

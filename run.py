@@ -273,7 +273,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--sparsity_type", type=str, choices=["unstructured", "4:8", "2:4"]
     )
-
+    parser.add_argument(
+        '--sparsity_ratio', type=float, default=0, help='Sparsity level'
+    )
 
     args = parser.parse_args()
     groupsize = args.blocksize
@@ -282,12 +284,27 @@ if __name__ == "__main__":
     save_title = f"{args.model}_{args.dataset}_{args.low_quant_method}_{groupsize}_{args.salient_metric}"
     save_file = "./output/" + save_title.replace("/", "_") + ".pt"
     
+    # Handling n:m sparsity
+    prune_n, prune_m = 0, 0
+    if args.sparsity_type != "unstructured":
+        assert args.sparsity_ratio == 0.5, "sparsity ratio must be 0.5 for structured N:M sparsity"
+        prune_n, prune_m = map(int, args.sparsity_type.split(":"))
+    
+    
     if args.load_quantized:
         model = get_model(save_file)
         model.eval()
     else: # braq
         model = get_model(args.model)
+        tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
         model.eval()
+        model.to(device)
+
+        device = torch.device("cuda:0")
+        if "30b" in args.model or "65b" in args.model or "70b" in args.model or "33b" in args.model: # for 30b and 65b we use device_map to load onto multiple A6000 GPUs, thus the processing here.
+            device = model.hf_device_map["lm_head"]
+        print("use device ", device)
+        
         tick = time.time()
         dataloader, testloader = get_loaders(
             args.dataset,
@@ -296,12 +313,25 @@ if __name__ == "__main__":
             model=args.model,
             seqlen=model.seqlen,
         )
-        quant_sequential(model, dataloader, device)
+        # quant_sequential(model, dataloader, device)
         print("quantization time:", time.time() - tick, "s")
         
         # prune after quant
-        if ar
+        start_time = time.time()
+        if args.sparsity_ratio != 0:
+            print("pruning starts")
+            if args.prune_method == "wanda":
+                prune_wanda(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            elif args.prune_method == "magnitude":
+                prune_magnitude(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            elif args.prune_method == "sparsegpt":
+                prune_sparsegpt(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            elif "ablate" in args.prune_method:
+                prune_ablate(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         
+        end_time = time.time()
+        print("pruning time: ", end_time - start_time)
+            
 
     if args.save:
         save_path = os.path.dirname(save_file)

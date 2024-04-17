@@ -10,4 +10,16 @@
 # python3 run.py /data2/share/llama-1/llama-7b-hf wikitext2 braq --blocksize 128 --salient_metric hessian --device "cuda:1"
 
 # add pruning
-python3 run.py /home/dongpeijie/share/llama-2-7b wikitext2 braq --blocksize 128 --salient_metric hessian --device "cuda:0"
+# CUDA_VISIBLE_DEVICES=0 python3 run.py /home/dongpeijie/share/llama-2-7b wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --device "cuda:0" \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --prune_method wanda 
+
+CUDA_VISIBLE_DEVICES=1 python3 run.py /home/dongpeijie/share/llama-2-7b wikitext2 braq --blocksize 128 \
+    --salient_metric hessian \
+    --device "cuda:0" \
+    --sparsity_ratio 0.5 \
+    --sparsity_type 4:8 \
+    --prune_method wanda 

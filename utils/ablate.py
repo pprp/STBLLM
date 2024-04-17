@@ -7,7 +7,7 @@ import transformers
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
-from autozc.structures.tree_engine import GPTree
+# from autozc.structures.tree_engine import GPTree
 
 
 class AblateGPT:
@@ -31,7 +31,7 @@ class AblateGPT:
             with open(gradient_path, 'rb') as file:
                 self.gradients = torch.load(
                     gradient_path, map_location=torch.device('cpu'))
-            self.engine = GPTree.load_tree('data/best_tree.json')
+            # self.engine = GPTree.load_tree('data/best_tree.json')
         else:
             self.gradients = None 
 
@@ -82,27 +82,27 @@ class AblateGPT:
 
         return W_mask 
     
-    def get_prunerzero_mask(self, sparsity, prunen, prunem, indexed_name):
-        W = self.layer.weight.data 
-        # prepare for G gradient 
-        assert self.gradients is not None, "Gradient is not provided."
-        G = self.gradients[indexed_name]
-        # W_metric = torch.abs(W)
-        W_metric = self.engine.forward(
-            W.to(dtype=torch.float32),
-            G.to(dtype=torch.float32, device=W.device)
-        )
-        if prunen != 0:
-            W_mask = (torch.zeros_like(W)==1)
-            for ii in range(W_metric.shape[1]):
-                if ii % prunem == 0:
-                    tmp = W_metric[:,ii:(ii+prunem)].float()
-                    W_mask.scatter_(1,ii+torch.topk(tmp, prunen,dim=1, largest=False)[1], True)
-        else:
-            thresh = torch.sort(W_metric.flatten().cuda())[0][int(W.numel()*sparsity)].cpu()
-            W_mask = (W_metric<=thresh)
+    # def get_prunerzero_mask(self, sparsity, prunen, prunem, indexed_name):
+    #     W = self.layer.weight.data 
+    #     # prepare for G gradient 
+    #     assert self.gradients is not None, "Gradient is not provided."
+    #     G = self.gradients[indexed_name]
+    #     # W_metric = torch.abs(W)
+    #     W_metric = self.engine.forward(
+    #         W.to(dtype=torch.float32),
+    #         G.to(dtype=torch.float32, device=W.device)
+    #     )
+    #     if prunen != 0:
+    #         W_mask = (torch.zeros_like(W)==1)
+    #         for ii in range(W_metric.shape[1]):
+    #             if ii % prunem == 0:
+    #                 tmp = W_metric[:,ii:(ii+prunem)].float()
+    #                 W_mask.scatter_(1,ii+torch.topk(tmp, prunen,dim=1, largest=False)[1], True)
+    #     else:
+    #         thresh = torch.sort(W_metric.flatten().cuda())[0][int(W.numel()*sparsity)].cpu()
+    #         W_mask = (W_metric<=thresh)
 
-        return W_mask 
+    #     return W_mask 
     
 
     def fasterprune(
@@ -153,11 +153,11 @@ class AblateGPT:
                         tmp = torch.abs(W1) * torch.sqrt(self.scaler_row[i1:i2].reshape((1,-1)))
                     elif "mag" in args.prune_method:
                         tmp = torch.abs(W1)
-                    elif "prunerzero" in args.prune_method: 
-                        tmp = self.engine.forward(
-                            W1.to(dtype=torch.float32),
-                            G[:, i1:i2].to(dtype=torch.float32, device=W1.device)
-                        )
+                    # elif "prunerzero" in args.prune_method: 
+                    #     tmp = self.engine.forward(
+                    #         W1.to(dtype=torch.float32),
+                    #         G[:, i1:i2].to(dtype=torch.float32, device=W1.device)
+                    #     )
                         
                     thresh = torch.sort(tmp.flatten())[0][int(tmp.numel() * sparsity)]
                     mask1 = tmp <= thresh
