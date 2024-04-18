@@ -96,6 +96,7 @@ def quant_sequential(model, dataloader, dev):
     layers[0] = layers[0].module
 
     layers[0] = layers[0].cpu()
+    
     if "opt" in args.model:
         model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.cpu()
         model.model.decoder.embed_positions = model.model.decoder.embed_positions.cpu()

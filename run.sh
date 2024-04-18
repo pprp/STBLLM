@@ -18,7 +18,8 @@
 #     --prune_method wanda
 
 
-CUDA_VISIBLE_DEVICES=0 python3 run.py /home/dongpeijie/share/tinyllama-1.1b-480k wikitext2 braq --blocksize 128 \
+CUDA_VISIBLE_DEVICES=0 python3 run.py /home/dongpeijie/share/tinyllama-1.1b-480k wikitext2 braq \
+    --blocksize 1024 \
     --salient_metric hessian \
     --sparsity_ratio 0.5 \
     --sparsity_type 4:8 \

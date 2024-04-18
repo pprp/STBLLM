@@ -64,8 +64,8 @@ def prepare_calibration_input(model, dataloader, device):
     layers = model.model.layers
 
     # dev = model.hf_device_map["model.embed_tokens"]
-    # if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
-    #     device = model.hf_device_map["model.embed_tokens"]
+    if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
+        device = model.hf_device_map["model.embed_tokens"]
 
     dtype = next(iter(model.parameters())).dtype
     inps = torch.zeros((128, model.seqlen, model.config.hidden_size), dtype=dtype, device=device) # ori: 128
@@ -84,6 +84,8 @@ def prepare_calibration_input(model, dataloader, device):
             cache['position_ids'] = kwargs['position_ids']
             raise ValueError
 
+    model.model.embed_tokens = model.model.embed_tokens.to(device)
+    model.model.norm = model.model.norm.to(device)
     layers[0] = layers[0].to(device)
     layers[0] = Catcher(layers[0])
 
@@ -137,20 +139,12 @@ def prune_wanda(args, model, dataloader, device=torch.device("cuda:0"), prune_n=
     use_cache = model.config.use_cache 
     model.config.use_cache = False 
 
-    # print("loading calibdation data")
-    # dataloader, _ = get_loaders("c4",nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
-    # dataloader, _ = get_loaders(
-    #     args.dataset,
-    #     nsamples=args.nsamples,
-    #     seed=args.seed,
-    #     model=args.model,
-    #     seqlen=model.seqlen,
-    # )
     print("dataset loading complete")
     with torch.no_grad():
         inps, outs, attention_mask, position_ids = prepare_calibration_input(model, dataloader, device)
 
-    breakpoint()
+    # llama     
+    torch.cuda.empty_cache()
 
     model = model.to(device)
     layers = model.model.layers
@@ -161,7 +155,10 @@ def prune_wanda(args, model, dataloader, device=torch.device("cuda:0"), prune_n=
         if f"model.layers.{i}" in model.hf_device_map:   ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
             dev = model.hf_device_map[f"model.layers.{i}"]
             inps, outs, attention_mask, position_ids = inps.to(dev), outs.to(dev), attention_mask.to(dev), position_ids.to(dev)
-
+        else:
+            dev = device
+            inps, outs, attention_mask, position_ids = inps.to(dev), outs.to(dev), attention_mask.to(dev), position_ids.to(dev)
+    
         wrapped_layers = {}
         for name in subset:
             wrapped_layers[name] = WrappedGPT(subset[name])
@@ -174,9 +171,18 @@ def prune_wanda(args, model, dataloader, device=torch.device("cuda:0"), prune_n=
         handles = []
         for name in wrapped_layers:
             handles.append(subset[name].register_forward_hook(add_batch(name)))
-        for j in range(args.nsamples):
-            with torch.no_grad():
-                outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+        
+        try:
+            for j in range(args.nsamples):
+                with torch.no_grad():
+                    # print(f"Layer device: {next(layer.parameters()).device}")
+                    # print(f"Input device: {inps[j].unsqueeze(0).device}")
+                    # print(f"Attention mask device: {attention_mask.device}")
+                    # print(f"Position IDs device: {position_ids.device}")
+                    outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+        except RuntimeError:
+            breakpoint()
+                
         for h in handles:
             h.remove()
 
