@@ -30,7 +30,7 @@ def get_model(model):
         model.seqlen = model.config.max_position_embeddings
     elif "llama" in model:
         from transformers import LlamaForCausalLM
-        model = LlamaForCausalLM.from_pretrained(model, torch_dtype="auto", device_map="auto")
+        model = LlamaForCausalLM.from_pretrained(model, torch_dtype=torch.float16, device_map="auto")
         model.seqlen = 2048
     return model
 
@@ -298,7 +298,9 @@ if __name__ == "__main__":
                 "7b" in args.model: 
                 # for 30b and 65b we use device_map to load onto multiple A6000 GPUs, thus the processing here.
             device = model.hf_device_map["lm_head"]
-        print("use device ", device)
+            print("use device ", device)
+        else:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         tick = time.time()
         dataloader, testloader = get_loaders(
@@ -308,7 +310,8 @@ if __name__ == "__main__":
             model=args.model,
             seqlen=model.seqlen,
         )
-        # quant_sequential(model, dataloader, device)
+        
+        quant_sequential(model, dataloader, device)
         print("quantization time:", time.time() - tick, "s")
         
         # prune after quant
@@ -334,16 +337,15 @@ if __name__ == "__main__":
             os.makedirs(save_path)
         model.save_pretrained(save_file)
 
-    for dataset in ["wikitext2", "ptb", "c4"]:
+    for dataset in ["wikitext2"]:
+                    # , "ptb", "c4"]:
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, seqlen=model.seqlen, model=args.model
         )
         print(dataset)
         if "opt" in args.model:
             from eval_ppl_utils import opt_eval
-
             opt_eval(model, testloader, device, dataset, args.log_wandb)
         elif "llama" in args.model:
             from eval_ppl_utils import llama_eval
-
             llama_eval(model, testloader, device, dataset, args.log_wandb)

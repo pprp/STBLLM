@@ -9,6 +9,7 @@ import torch.nn as nn
 def llama_eval(model, testenc, dev,  dataset: str, log_wandb: bool = False):
     print("Evaluating ...")
 
+    testenc = testenc.to(dev)
     testenc = testenc.input_ids
     nsamples = testenc.numel() // model.seqlen
 
