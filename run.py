@@ -180,6 +180,8 @@ def quant_sequential(model, dataloader, dev):
         inps, outs = outs, inps
 
     model.config.use_cache = use_cache
+    
+    return model
 
 
 if __name__ == "__main__":
@@ -311,7 +313,7 @@ if __name__ == "__main__":
             seqlen=model.seqlen,
         )
         
-        quant_sequential(model, dataloader, device)
+        model = quant_sequential(model, dataloader, device)
         print("quantization time:", time.time() - tick, "s")
         
         # prune after quant
@@ -319,7 +321,7 @@ if __name__ == "__main__":
         if args.sparsity_ratio != 0:
             print("pruning starts")
             if args.prune_method == "wanda":
-                prune_wanda(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+                prune_wanda(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
             elif args.prune_method == "magnitude":
                 prune_magnitude(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
             elif args.prune_method == "sparsegpt":

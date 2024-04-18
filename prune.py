@@ -64,8 +64,8 @@ def prepare_calibration_input(model, dataloader, device):
     layers = model.model.layers
 
     # dev = model.hf_device_map["model.embed_tokens"]
-    if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
-        device = model.hf_device_map["model.embed_tokens"]
+    # if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
+    #     device = model.hf_device_map["model.embed_tokens"]
 
     dtype = next(iter(model.parameters())).dtype
     inps = torch.zeros((128, model.seqlen, model.config.hidden_size), dtype=dtype, device=device) # ori: 128
@@ -76,12 +76,15 @@ def prepare_calibration_input(model, dataloader, device):
         def __init__(self, module):
             super().__init__()
             self.module = module
+            
         def forward(self, inp, **kwargs):
             inps[cache['i']] = inp
             cache['i'] += 1
             cache['attention_mask'] = kwargs['attention_mask']
             cache['position_ids'] = kwargs['position_ids']
             raise ValueError
+
+    layers[0] = layers[0].to(device)
     layers[0] = Catcher(layers[0])
 
     for batch in dataloader:
@@ -89,6 +92,7 @@ def prepare_calibration_input(model, dataloader, device):
             model(batch[0].to(device))
         except ValueError:
             pass 
+
     layers[0] = layers[0].module
 
     outs = torch.zeros_like(inps)
@@ -129,23 +133,26 @@ def prune_magnitude(args, model, tokenizer, device=torch.device("cuda:0"), prune
             W[W_mask] = 0
 
 
-def prune_wanda(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
+def prune_wanda(args, model, dataloader, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
     use_cache = model.config.use_cache 
     model.config.use_cache = False 
 
-    print("loading calibdation data")
+    # print("loading calibdation data")
     # dataloader, _ = get_loaders("c4",nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
-    dataloader, _ = get_loaders(
-        args.dataset,
-        nsamples=args.nsamples,
-        seed=args.seed,
-        model=args.model,
-        seqlen=model.seqlen,
-    )
+    # dataloader, _ = get_loaders(
+    #     args.dataset,
+    #     nsamples=args.nsamples,
+    #     seed=args.seed,
+    #     model=args.model,
+    #     seqlen=model.seqlen,
+    # )
     print("dataset loading complete")
     with torch.no_grad():
         inps, outs, attention_mask, position_ids = prepare_calibration_input(model, dataloader, device)
 
+    breakpoint()
+
+    model = model.to(device)
     layers = model.model.layers
     for i in range(len(layers)):
         layer = layers[i]
