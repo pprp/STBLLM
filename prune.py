@@ -283,8 +283,15 @@ def prune_sparsegpt(args, model, dataloader, dev, prune_n=0, prune_m=0):
     print('Ready.')
 
     for i in range(len(layers)):
-        if i == 0 or i == len(layers)-1:
+        # s1: 81.97
+        # if i == 0 or i == len(layers)-1:
+            # continue
+            
+        # s2: 25% 
+        ratio=0.25
+        if i < int(ratio * len(layers)) and i > int((1-ratio)*len(layers)):
             continue
+            
         layer = layers[i]
         if f"model.layers.{i}" in model.hf_device_map:
             dev = model.hf_device_map[f"model.layers.{i}"]
