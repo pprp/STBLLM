@@ -149,6 +149,9 @@ def prune_wanda(args, model, dataloader, device=torch.device("cuda:0"), prune_n=
     model = model.to(device)
     layers = model.model.layers
     for i in range(len(layers)):
+        if i == 0 or i == len(layers)-1:
+            continue 
+
         layer = layers[i]
         subset = find_layers(layer)
 
@@ -236,10 +239,10 @@ def prune_wanda(args, model, dataloader, device=torch.device("cuda:0"), prune_n=
 
 
 @torch.no_grad()
-def prune_sparsegpt(args, model, tokenizer, dev, prune_n=0, prune_m=0):
+def prune_sparsegpt(args, model, dataloader, dev, prune_n=0, prune_m=0):
     ## SparseGPT code available at: https://github.com/IST-DASLab/sparsegpt/tree/f5c25005a61f96a0933ca2f95705a963585aafaa
     print('Starting ...')
-    dataloader, _ = get_loaders("c4",nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
+    # dataloader, _ = get_loaders("c4",nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
 
     use_cache = model.config.use_cache
     model.config.use_cache = False
@@ -280,6 +283,8 @@ def prune_sparsegpt(args, model, tokenizer, dev, prune_n=0, prune_m=0):
     print('Ready.')
 
     for i in range(len(layers)):
+        if i == 0 or i == len(layers)-1:
+            continue
         layer = layers[i]
         if f"model.layers.{i}" in model.hf_device_map:
             dev = model.hf_device_map[f"model.layers.{i}"]

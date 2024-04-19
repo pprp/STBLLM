@@ -292,6 +292,10 @@ if __name__ == "__main__":
         model.eval()
     else: # braq
         model = get_model(args.model)
+        
+        # deepcopy the model for testing the quantization 
+        model_bak = get_model(args.model)
+        
         tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
         model.eval()
         print(f"Available CUDA devices: {torch.cuda.device_count()}")
@@ -305,7 +309,6 @@ if __name__ == "__main__":
         else:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        tick = time.time()
         dataloader, testloader = get_loaders(
             args.dataset,
             nsamples=args.nsamples,
@@ -313,9 +316,6 @@ if __name__ == "__main__":
             model=args.model,
             seqlen=model.seqlen,
         )
-        
-        model = quant_sequential(model, dataloader, device)
-        print("quantization time:", time.time() - tick, "s")
         
         # prune after quant
         start_time = time.time()
@@ -326,13 +326,17 @@ if __name__ == "__main__":
             elif args.prune_method == "magnitude":
                 prune_magnitude(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
             elif args.prune_method == "sparsegpt":
-                prune_sparsegpt(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+                prune_sparsegpt(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
             elif "ablate" in args.prune_method:
                 prune_ablate(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
         
         end_time = time.time()
         print("pruning time: ", end_time - start_time)
-            
+        
+        tick = time.time()
+        model = quant_sequential(model, dataloader, device)
+        print("quantization time:", time.time() - tick, "s")
+        
 
     if args.save:
         save_path = os.path.dirname(save_file)

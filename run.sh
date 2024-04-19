@@ -19,11 +19,11 @@
 
 
 CUDA_VISIBLE_DEVICES=0 python3 run.py /home/dongpeijie/share/tinyllama-1.1b-480k wikitext2 braq \
-    --blocksize 1024 \
+    --blocksize 128 \
     --salient_metric hessian \
     --sparsity_ratio 0.5 \
     --sparsity_type 4:8 \
-    --prune_method wanda
+    --prune_method sparsegpt
 
 # CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=2,5 python3 run.py /home/dongpeijie/share/tinyllama-1.1b-480k wikitext2 braq --blocksize 128 \
 #     --salient_metric hessian \
