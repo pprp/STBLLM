@@ -23,11 +23,10 @@
 # prune+quant(sparsegpt)第一block和最后一block不稀疏: 81.97
 # prune+quant(sparsegpt)前三block和最后三block不稀疏: 65.326210
 # prune+quant(sparsegpt)前25%block和最后25% block不稀疏: 97.01
-# prune+quant(RIA)第一层和最后一层不稀疏: 
-# prune+quant(Pruner-Zero)第一层和最后一层不稀疏: 
-# prune+quant(我们增强的 metric )第一层和最后一层不稀疏: 
-# prune+quant(我们增强的 metric )第一层和最后一层不稀疏: 
+# prune+quant(sparsegpt)第1层的attn和最后一层的mlp不稀疏: 104.9167
+# prune+quant(sparsegpt)第1层的mlp和最后一层的mlp不稀疏: 80.8447
 # prune(pruner-zero): 12.63 
+# prune+quant(pruner-zero): 151.228
 
 
 

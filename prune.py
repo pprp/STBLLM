@@ -328,10 +328,19 @@ def prune_sparsegpt(args, model, dataloader, dev, prune_n=0, prune_m=0):
         for name in gpts:
             # if "attn" in name:
             #     continue # filter out the mlp layer 
-            if i == 0 and 'attn' in name:
+            
+            # s4
+            # if i == 0 and 'mlp' in name:
+            #     continue
+            # if i == len(layers)-1 and 'mlp' in name:
+            #     continue
+
+            # s5: first 3 and last 3 
+            if i < 3 and 'mlp' in name:
                 continue
-            if i == len(layers)-1 and 'mlp' in name:
-                continue
+            if i > len(layers)-4 and 'mlp' in name:
+                continue 
+
             print(i, name)
             print('Pruning ...')
 

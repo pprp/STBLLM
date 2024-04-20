@@ -8,6 +8,7 @@ from bigptq import BRAGPTQ
 from binary import Binarization
 from modelutils import find_layers
 from prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_ri, prune_ria, prune_gblm, prune_pruner_zero
+from autozc.structures.tree_engine import GPTree
 
 print('torch', version('torch'))
 print('transformers', version('transformers'))
@@ -276,6 +277,10 @@ if __name__ == "__main__":
     parser.add_argument(
         '--sparsity_ratio', type=float, default=0, help='Sparsity level'
     )
+    parser.add_argument(
+        '--gradient_path', type=str, default="gradients/llama2/gradients_aggregrate_norm_l2_model_tinyllama-1.1b-480k-1t.pth",
+        help='Path to the gradients'
+    )
 
     args = parser.parse_args()
     groupsize = args.blocksize
@@ -334,7 +339,11 @@ if __name__ == "__main__":
                 prune_ri(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
             elif "gblm" in args.prune_method:
                 prune_gblm(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
-        
+            elif "pruner-zero" in args.prune_method: 
+                engine = GPTree.load_tree('./data/best_tree.json')
+                prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
+            else:
+                raise NotImplementedError
         end_time = time.time()
         print("pruning time: ", end_time - start_time)
         
