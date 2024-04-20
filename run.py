@@ -7,7 +7,7 @@ from importlib.metadata import version
 from bigptq import BRAGPTQ
 from binary import Binarization
 from modelutils import find_layers
-from prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_pruner_zero
+from prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_ri, prune_ria, prune_gblm
 
 print('torch', version('torch'))
 print('transformers', version('transformers'))
@@ -267,7 +267,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--prune_method", type=str, choices=["magnitude", "wanda", "sparsegpt", 
         "ablate_mag_seq", "ablate_wanda_seq", "ablate_mag_iter", 
-        "ablate_wanda_iter", "search", "pruner-zero", "ablate_prunerzero_seq", "ablate_prunerzero_iter"]
+        "ablate_wanda_iter", "search", "pruner-zero", "ablate_prunerzero_seq", "ablate_prunerzero_iter",
+        "ri", "ria", "gblm"]
     )
     parser.add_argument(
         "--sparsity_type", type=str, choices=["unstructured", "4:8", "2:4"]
@@ -327,6 +328,12 @@ if __name__ == "__main__":
                 prune_sparsegpt(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
             elif "ablate" in args.prune_method:
                 prune_ablate(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+            elif "ria" in args.prune_method:
+                prune_ria(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
+            elif "ri" in args.prune_method:
+                prune_ri(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
+            elif "gblm" in args.prune_method:
+                prune_gblm(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
         
         end_time = time.time()
         print("pruning time: ", end_time - start_time)

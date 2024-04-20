@@ -338,7 +338,7 @@ def prune_sparsegpt(args, model, dataloader, dev, prune_n=0, prune_m=0):
 
 def prune_gblm(args,
                model,
-               tokenizer,
+               dataloader,
                device=torch.device('cuda:0'),
                prune_n=0,
                prune_m=0,
@@ -349,17 +349,17 @@ def prune_gblm(args,
         gradients = torch.load(
             args.gradient_path, map_location=torch.device('cpu'))
 
-    print('loading calibdation data')
-    dataloader, _ = get_loaders(
-        'wikitext2',
-        nsamples=args.nsamples,
-        seed=args.seed,
-        seqlen=2048,
-        tokenizer=tokenizer)
+    # print('loading calibdation data')
+    # dataloader, _ = get_loaders(
+    #     'wikitext2',
+    #     nsamples=args.nsamples,
+    #     seed=args.seed,
+    #     seqlen=2048,
+    #     tokenizer=tokenizer)
     print('dataset loading complete')
     with torch.no_grad():
         inps, outs, attention_mask, position_ids = prepare_calibration_input(
-            model, dataloader, args.nsamples, device)
+            model, dataloader, device)
 
     layers = model.model.layers
     for i in range(len(layers)):
@@ -479,7 +479,7 @@ def prune_gblm(args,
 
 
 
-def prune_ri(args, model, tokenizer, device=torch.device('cuda:0'), prune_n=0, prune_m=0, layer_no=-1):
+def prune_ri(args, model, dataloader, device=torch.device('cuda:0'), prune_n=0, prune_m=0, layer_no=-1):
     """plug and play based on magnitude pruning"""
     layers = model.model.layers
 
@@ -510,22 +510,23 @@ def prune_ri(args, model, tokenizer, device=torch.device('cuda:0'), prune_n=0, p
 
             W[W_mask] = 0
 
-def prune_ria(args, model, tokenizer, device=torch.device('cuda:0'), prune_n=0, prune_m=0, layer_no=-1, alpha=1):
+def prune_ria(args, model, dataloader, device=torch.device('cuda:0'), prune_n=0, prune_m=0, layer_no=-1, alpha=1):
     layers = model.model.layers
     use_cache = model.config.use_cache
     model.config.use_cache = False
 
-    print('loading calibdation data')
-    dataloader, _ = get_loaders(
-        'wikitext2',
-        nsamples=args.nsamples,
-        seed=args.seed,
-        seqlen=2048,
-        tokenizer=tokenizer)
+    # print('loading calibdation data')
+    # dataloader, _ = get_loaders(
+    #     'wikitext2',
+    #     nsamples=args.nsamples,
+    #     seed=args.seed,
+    #     seqlen=2048,
+    #     tokenizer=tokenizer)
+
     print('dataset loading complete')
     with torch.no_grad():
         inps, outs, attention_mask, position_ids = prepare_calibration_input(
-            model, dataloader, args.nsamples, device)
+            model, dataloader, device)
 
     layers = model.model.layers
 
