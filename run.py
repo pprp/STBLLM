@@ -28,10 +28,11 @@ def get_model(model):
 
         model = OPTForCausalLM.from_pretrained(model, torch_dtype="auto")
         model.seqlen = model.config.max_position_embeddings
-    elif "llama" in model:
+    elif "llama" in model or "Llama" in model:
         from transformers import LlamaForCausalLM
         model = LlamaForCausalLM.from_pretrained(model, torch_dtype=torch.float16, device_map="auto")
         model.seqlen = 2048
+
     return model
 
 
@@ -64,10 +65,11 @@ def quant_sequential(model, dataloader, dev):
             and model.model.decoder.project_in
         ):
             model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
-    elif "llama" in args.model:
+    elif "llama" in args.model or "Llama" in args.model:
         layers = model.model.layers
         model.model.embed_tokens = model.model.embed_tokens.to(dev)
         model.model.norm = model.model.norm.to(dev)
+
     layers[0] = layers[0].to(dev)
 
     dtype = next(iter(model.parameters())).dtype
@@ -110,7 +112,7 @@ def quant_sequential(model, dataloader, dev):
             and model.model.decoder.project_in
         ):
             model.model.decoder.project_in = model.model.decoder.project_in.cpu()
-    elif "llama" in args.model:
+    elif "llama" in args.model or "Llama" in args.model:
         model.model.embed_tokens = model.model.embed_tokens.cpu()
         model.model.norm = model.model.norm.cpu()
     torch.cuda.empty_cache()
@@ -292,10 +294,6 @@ if __name__ == "__main__":
         model.eval()
     else: # braq
         model = get_model(args.model)
-        
-        # deepcopy the model for testing the quantization 
-        model_bak = get_model(args.model)
-        
         tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
         model.eval()
         print(f"Available CUDA devices: {torch.cuda.device_count()}")
@@ -353,6 +351,6 @@ if __name__ == "__main__":
         if "opt" in args.model:
             from eval_ppl_utils import opt_eval
             opt_eval(model, testloader, device, dataset, args.log_wandb)
-        elif "llama" in args.model:
+        elif "llama" in args.model or "Llama" in args.model:
             from eval_ppl_utils import llama_eval
             llama_eval(model, testloader, device, dataset, args.log_wandb)
