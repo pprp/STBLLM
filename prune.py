@@ -336,10 +336,22 @@ def prune_sparsegpt(args, model, dataloader, dev, prune_n=0, prune_m=0):
             #     continue
 
             # s5: first 3 and last 3 
-            if i < 3 and 'mlp' in name:
+            # if i < 3 and 'mlp' in name:
+            #     continue
+            # if i > len(layers)-4 and 'mlp' in name:
+            #     continue 
+
+            # s6: first 4 and last 4 
+            # if i < 4 and 'mlp' in name:
+            #     continue
+            # if i > len(layers)-5 and 'mlp' in name:
+            #     continue 
+            
+            # s7: first 5 and last 5 
+            if i < 5 and 'mlp' in name:
                 continue
-            if i > len(layers)-4 and 'mlp' in name:
-                continue 
+            if i > len(layers)-6 and 'mlp' in name:
+                continue
 
             print(i, name)
             print('Pruning ...')
@@ -594,6 +606,88 @@ def prune_ria(args, model, dataloader, device=torch.device('cuda:0'), prune_n=0,
                 RIA = R * X_norm.unsqueeze(0).pow(0.5)  # Unsqueeze to ensure correct broadcasting
             except RuntimeError:
                 breakpoint()
+
+            if prune_n != 0:
+                W_mask = (torch.zeros_like(W) == 1)
+                for ii in range(RIA.shape[1]):
+                    if ii % prune_m == 0:
+                        tmp = RIA[:, ii:(ii + prune_m)].float()
+                        W_mask.scatter_(
+                            1, ii +
+                            torch.topk(tmp, prune_n, dim=1, largest=True)[1],  # Pruning the least relevant weights
+                            True)
+            else:
+                thresh = torch.sort(RIA.flatten())[0][int(
+                    RIA.numel() * args.sparsity_ratio)].cpu()
+                W_mask = (RIA <= thresh)
+
+            W[W_mask] = 0
+
+
+
+def prune_advanced_ria(args, model, dataloader, device=torch.device('cuda:0'), prune_n=0, prune_m=0, layer_no=-1, alpha=0.5):
+    layers = model.model.layers
+    use_cache = model.config.use_cache
+    model.config.use_cache = False
+    
+    def weighted_sum_ratio(W):
+        row_norms = torch.sqrt((W**2).sum(dim=1, keepdim=True))
+        col_norms = torch.sqrt((W**2).sum(dim=0, keepdim=True))
+        return W / row_norms + W / col_norms
+
+    print('dataset loading complete')
+    with torch.no_grad():
+        inps, outs, attention_mask, position_ids = prepare_calibration_input(
+            model, dataloader, device)
+
+    layers = model.model.layers
+
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        if f'model.layers.{i}' in model.hf_device_map:  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
+            dev = model.hf_device_map[f'model.layers.{i}']
+            inps, outs, attention_mask, position_ids = inps.to(dev), outs.to(
+                dev), attention_mask.to(dev), position_ids.to(dev)
+
+        wrapped_layers = {}
+        for name in subset:
+            wrapped_layers[name] = WrappedGPT(
+                subset[name], layer_id=i, layer_name=name)
+
+        def add_batch(name):
+            def tmp(_, inp, out):
+                wrapped_layers[name].add_batch(inp[0].data, out.data)
+
+            return tmp
+
+        handles = []
+        for name in wrapped_layers:
+            handles.append(subset[name].register_forward_hook(
+                add_batch(name)))  ## this is a important function.
+            
+        for j in range(args.nsamples):
+            with torch.no_grad():
+                outs[j] = layer(
+                    inps[j].unsqueeze(0),
+                    attention_mask=attention_mask,
+                    position_ids=position_ids)[0]
+
+        for h in handles:
+            h.remove()
+            
+        for name in subset:
+            print(f'pruning layer {i} name {name}')
+            # X_norm = torch.norm(wrapped_layers[name].scaler_row.reshape((1, -1)), p=2, dim=0)
+            # W = subset[name].weight.data
+            # W_abs = torch.abs(W)
+            # sum_abs_cols = torch.sum(W_abs, dim=0, keepdim=True)
+            # sum_abs_rows = torch.sum(W_abs, dim=1, keepdim=True)
+            # R = W_abs / sum_abs_cols + W_abs / sum_abs_rows
+            W_abs = torch.abs(subset[name].weight.data)
+            log_norm = torch.log1p(weighted_sum_ratio(W_abs))
+            RIA = log_norm * torch.pow(wrapped_layers[name].scaler_row.reshape((1, -1)), 0.25)
 
             if prune_n != 0:
                 W_mask = (torch.zeros_like(W) == 1)

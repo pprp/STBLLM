@@ -27,7 +27,7 @@
 # prune+quant(sparsegpt)第1层的mlp和最后一层的mlp不稀疏: 80.8447
 # prune(pruner-zero): 12.63 
 # prune+quant(pruner-zero): 151.228
-
+# prune+quant(sparsegpt) first3 last3 mlp 不稀疏：60.278397
 
 
 # add pruning

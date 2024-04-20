@@ -7,7 +7,9 @@ from importlib.metadata import version
 from bigptq import BRAGPTQ
 from binary import Binarization
 from modelutils import find_layers
-from prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_ri, prune_ria, prune_gblm, prune_pruner_zero
+from prune import prune_wanda, prune_magnitude, prune_sparsegpt, \
+    prune_ablate, check_sparsity, find_layers, prune_ri, prune_ria, \
+        prune_gblm, prune_pruner_zero, prune_advanced_ria
 from autozc.structures.tree_engine import GPTree
 
 
@@ -120,7 +122,7 @@ if __name__ == "__main__":
         "--prune_method", type=str, choices=["magnitude", "wanda", "sparsegpt", 
         "ablate_mag_seq", "ablate_wanda_seq", "ablate_mag_iter", 
         "ablate_wanda_iter", "search", "pruner-zero", "ablate_prunerzero_seq", "ablate_prunerzero_iter",
-        "ri", "ria", "gblm"]
+        "ri", "ria", "gblm", 'advanced_ria']
     )
     parser.add_argument(
         "--sparsity_type", type=str, choices=["unstructured", "4:8", "2:4"]
@@ -193,7 +195,10 @@ if __name__ == "__main__":
             elif "pruner-zero" in args.prune_method:
                 engine = GPTree.load_tree('./data/best_tree.json')
                 prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
-
+            elif "advanced_ria" in args.prune_method: 
+                prune_advanced_ria(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
+            else:
+                raise NotImplementedError(f"Pruning method {args.prune_method} not implemented.")
         end_time = time.time()
         print("pruning time: ", end_time - start_time)
         

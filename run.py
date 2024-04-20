@@ -159,6 +159,7 @@ def quant_sequential(model, dataloader, dev):
         handles = []
         for name in gptq:
             handles.append(subset[name].register_forward_hook(add_batch(name)))
+            
         for j in range(args.nsamples):
             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
         for h in handles:
