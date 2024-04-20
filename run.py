@@ -188,7 +188,6 @@ def quant_sequential(model, dataloader, dev):
     
     return model
 
-
 if __name__ == "__main__":
     import argparse
     from datautils import *

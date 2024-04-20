@@ -342,16 +342,16 @@ def prune_sparsegpt(args, model, dataloader, dev, prune_n=0, prune_m=0):
             #     continue 
 
             # s6: first 4 and last 4 
-            # if i < 4 and 'mlp' in name:
-            #     continue
-            # if i > len(layers)-5 and 'mlp' in name:
-            #     continue 
+            if i < 4 and 'mlp' in name:
+                continue
+            if i > len(layers)-5 and 'mlp' in name:
+                continue 
             
             # s7: first 5 and last 5 
-            if i < 5 and 'mlp' in name:
-                continue
-            if i > len(layers)-6 and 'mlp' in name:
-                continue
+            # if i < 5 and 'mlp' in name:
+            #     continue
+            # if i > len(layers)-6 and 'mlp' in name:
+            #     continue
 
             print(i, name)
             print('Pruning ...')
