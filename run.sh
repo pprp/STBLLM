@@ -14,8 +14,21 @@
 # quant+prune:977.73
 # prune+quant(wanda):155.74
 # prune+quant(sparsegpt): 97.01
-# prune+quant(sparsegpt)第一层和最后一层不稀疏: 81.97 - 默认操作
+# prune+quant(sparsegpt) 第一层和最后一层不稀疏: 81.97 - 默认操作
 # prune+quant(sparsegpt) 前10%和后10% 层不稀疏：97.010
+# prune+quant(sparsegpt) 第一层和最后一层不稀疏+不对mlp稀疏: 32.84
+# prune+quant(sparsegpt) 第一层和最后一层不稀疏+不对attn稀疏: 62.95
+# prune+quant(ri): 177451 
+# prune+quant(ria): 177451
+# prune+quant(sparsegpt)第一block和最后一block不稀疏: 81.97
+# prune+quant(sparsegpt)前三block和最后三block不稀疏: 65.326210
+# prune+quant(sparsegpt)前25%block和最后25% block不稀疏: 97.01
+# prune+quant(RIA)第一层和最后一层不稀疏: 
+# prune+quant(Pruner-Zero)第一层和最后一层不稀疏: 
+# prune+quant(我们增强的 metric )第一层和最后一层不稀疏: 
+# prune+quant(我们增强的 metric )第一层和最后一层不稀疏: 
+# prune(pruner-zero): 12.63 
+
 
 
 # add pruning
@@ -99,19 +112,19 @@
 #     --sparsity_type 4:8 \
 #     --prune_method wanda 
 
-# ria 
-CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=4 python3 run.py /data2/share/tinyllama/tinyllama-1.1b-480k-1t wikitext2 braq --blocksize 128 \
-    --salient_metric hessian \
-    --sparsity_ratio 0.5 \
-    --sparsity_type 4:8 \
-    --prune_method ria 
+# ria ： 177451
+# CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=4 python3 run.py /data2/share/tinyllama/tinyllama-1.1b-480k-1t wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --prune_method ria > ./logs/ria.log 2>&1 &
 
-# ri 
+# # ri 
 # CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=5 python3 run.py /data2/share/tinyllama/tinyllama-1.1b-480k-1t wikitext2 braq --blocksize 128 \
 #     --salient_metric hessian \
 #     --sparsity_ratio 0.5 \
 #     --sparsity_type 4:8 \
-#     --prune_method ri
+#     --prune_method ri > ./logs/ri.log 2>&1 &
 
 # gblm 
 # CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=4 python3 run.py /data2/share/tinyllama/tinyllama-1.1b-480k-1t wikitext2 braq --blocksize 128 \
@@ -121,3 +134,12 @@ CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=4 python3 run.py /data2/share/tinyll
 #     --prune_method gblm
 
 # 探究那些层对结果影响大；
+# braq: 81.97
+# remove mlp: 32.8461
+# remove atten: 62.95
+# CUDA_VISIBLE_DEVICES=6 python3 run.py /data2/share/tinyllama/tinyllama-1.1b-480k-1t wikitext2 braq \
+#     --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --prune_method sparsegpt

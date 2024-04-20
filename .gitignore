@@ -7,3 +7,4 @@ utils/__pycache__/autosearch.cpython-39.pyc
 Skywork/*
 TinyLlama/*
 *.log
+gradients/*

@@ -7,7 +7,7 @@ import transformers
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
-# from autozc.structures.tree_engine import GPTree
+from autozc.structures.tree_engine import GPTree
 
 
 class AblateGPT:
@@ -31,7 +31,7 @@ class AblateGPT:
             with open(gradient_path, 'rb') as file:
                 self.gradients = torch.load(
                     gradient_path, map_location=torch.device('cpu'))
-            # self.engine = GPTree.load_tree('data/best_tree.json')
+            self.engine = GPTree.load_tree('data/best_tree.json')
         else:
             self.gradients = None 
 
@@ -153,11 +153,11 @@ class AblateGPT:
                         tmp = torch.abs(W1) * torch.sqrt(self.scaler_row[i1:i2].reshape((1,-1)))
                     elif "mag" in args.prune_method:
                         tmp = torch.abs(W1)
-                    # elif "prunerzero" in args.prune_method: 
-                    #     tmp = self.engine.forward(
-                    #         W1.to(dtype=torch.float32),
-                    #         G[:, i1:i2].to(dtype=torch.float32, device=W1.device)
-                    #     )
+                    elif "prunerzero" in args.prune_method: 
+                        tmp = self.engine.forward(
+                            W1.to(dtype=torch.float32),
+                            G[:, i1:i2].to(dtype=torch.float32, device=W1.device)
+                        )
                         
                     thresh = torch.sort(tmp.flatten())[0][int(tmp.numel() * sparsity)]
                     mask1 = tmp <= thresh

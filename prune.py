@@ -284,13 +284,20 @@ def prune_sparsegpt(args, model, dataloader, dev, prune_n=0, prune_m=0):
 
     for i in range(len(layers)):
         # s1: 81.97
-        if i == 0 or i == len(layers)-1:
-            continue
+        # if i == 0 or i == len(layers)-1:
+        #     continue
             
         # s2: 25% 
         # ratio=0.25
         # if i < int(ratio * len(layers)) and i > int((1-ratio)*len(layers)):
         #     continue
+
+        # s3: first 3 and last 3
+        # if i < 3 or i > len(layers)-4:
+        #     continue
+
+        # s4: within layer 
+        # see below
             
         layer = layers[i]
         if f"model.layers.{i}" in model.hf_device_map:
@@ -319,6 +326,12 @@ def prune_sparsegpt(args, model, dataloader, dev, prune_n=0, prune_m=0):
             h.remove()
 
         for name in gpts:
+            # if "attn" in name:
+            #     continue # filter out the mlp layer 
+            if i == 0 and 'attn' in name:
+                continue
+            if i == len(layers)-1 and 'mlp' in name:
+                continue
             print(i, name)
             print('Pruning ...')
 
@@ -510,18 +523,10 @@ def prune_ri(args, model, dataloader, device=torch.device('cuda:0'), prune_n=0, 
 
             W[W_mask] = 0
 
-def prune_ria(args, model, dataloader, device=torch.device('cuda:0'), prune_n=0, prune_m=0, layer_no=-1, alpha=1):
+def prune_ria(args, model, dataloader, device=torch.device('cuda:0'), prune_n=0, prune_m=0, layer_no=-1, alpha=0.5):
     layers = model.model.layers
     use_cache = model.config.use_cache
     model.config.use_cache = False
-
-    # print('loading calibdation data')
-    # dataloader, _ = get_loaders(
-    #     'wikitext2',
-    #     nsamples=args.nsamples,
-    #     seed=args.seed,
-    #     seqlen=2048,
-    #     tokenizer=tokenizer)
 
     print('dataset loading complete')
     with torch.no_grad():
@@ -545,7 +550,6 @@ def prune_ria(args, model, dataloader, device=torch.device('cuda:0'), prune_n=0,
                 subset[name], layer_id=i, layer_name=name)
 
         def add_batch(name):
-
             def tmp(_, inp, out):
                 wrapped_layers[name].add_batch(inp[0].data, out.data)
 
@@ -568,15 +572,19 @@ def prune_ria(args, model, dataloader, device=torch.device('cuda:0'), prune_n=0,
             
         for name in subset:
             print(f'pruning layer {i} name {name}')
-            X_norm = torch.norm(wrapped_layers[name].scaler_row.reshape((1, -1)), p=2, dim=1).pow(alpha)
+            X_norm = torch.norm(wrapped_layers[name].scaler_row.reshape((1, -1)), p=2, dim=0)
             W = subset[name].weight.data
             W_abs = torch.abs(W)
             sum_abs_cols = torch.sum(W_abs, dim=0, keepdim=True)
             sum_abs_rows = torch.sum(W_abs, dim=1, keepdim=True)
-            R = W_abs / (sum_abs_cols + sum_abs_rows - W_abs)
+            R = W_abs / sum_abs_cols + W_abs / sum_abs_rows
+
 
             # Multiply the relevance index RI by the activation norm raised to the power alpha to get RIA
-            RIA = R * X_norm.unsqueeze(1)  # Unsqueeze to ensure correct broadcasting
+            try:
+                RIA = R * X_norm.unsqueeze(0).pow(0.5)  # Unsqueeze to ensure correct broadcasting
+            except RuntimeError:
+                breakpoint()
 
             if prune_n != 0:
                 W_mask = (torch.zeros_like(W) == 1)
@@ -711,17 +719,14 @@ def prune_ablate(args, model, tokenizer, dev, prune_n=0, prune_m=0):
     torch.cuda.empty_cache()
 
     
-def prune_pruner_zero(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0, engine=None):
+def prune_pruner_zero(args, model, dataloader, device=torch.device("cuda:0"), prune_n=0, prune_m=0, engine=None):
     use_cache = model.config.use_cache 
     model.config.use_cache = False 
     
     with open(args.gradient_path, 'rb') as file:
         gradients = torch.load(
             args.gradient_path, map_location=torch.device('cpu'))
-
-    print("loading calibdation data")
-    dataloader, _ = get_loaders("c4",nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
-    print("dataset loading complete")
+        
     with torch.no_grad():
         inps, outs, attention_mask, position_ids = prepare_calibration_input(model, dataloader, device)
 
