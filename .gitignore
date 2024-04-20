@@ -4,3 +4,6 @@ cache/*
 cache/ptb_128_0_2048_/data2/share/llama-1/llama-7b-hf.pt
 utils/__pycache__/autosearch.cpython-39.pyc
 *.pyc
+Skywork/*
+TinyLlama/*
+*.log
