@@ -124,7 +124,13 @@ def quant_sequential(model, dataloader, dev):
     print("Ready.")
     
     for i in range(len(layers)):
-        layer = layers[i].to(dev)
+        layer = layers[i]
+        
+        if f"model.layers.{i}" in model.hf_device_map:
+            dev = model.hf_device_map[f"model.layers.{i}"]
+            inps, outs, attention_mask = inps.to(dev), outs.to(dev), attention_mask.to(dev)
+
+        layer = layer.to(dev)
 
         # Find module of Conv or Linear;
         subset = find_layers(layer)
@@ -305,9 +311,7 @@ if __name__ == "__main__":
         print(f"Available CUDA devices: {torch.cuda.device_count()}")
         
         if "30b" in args.model or "65b" in args.model or \
-            "70b" in args.model or "33b" in args.model or \
-                "7b" in args.model: 
-                # for 30b and 65b we use device_map to load onto multiple A6000 GPUs, thus the processing here.
+            "70b" in args.model or "33b" in args.model:              # for 30b and 65b we use device_map to load onto multiple A6000 GPUs, thus the processing here.
             device = model.hf_device_map["lm_head"]
             print("use device ", device)
         else:

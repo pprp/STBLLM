@@ -178,10 +178,6 @@ def prune_wanda(args, model, dataloader, device=torch.device("cuda:0"), prune_n=
         try:
             for j in range(args.nsamples):
                 with torch.no_grad():
-                    # print(f"Layer device: {next(layer.parameters()).device}")
-                    # print(f"Input device: {inps[j].unsqueeze(0).device}")
-                    # print(f"Attention mask device: {attention_mask.device}")
-                    # print(f"Position IDs device: {position_ids.device}")
                     outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
         except RuntimeError:
             breakpoint()
