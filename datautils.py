@@ -16,7 +16,10 @@ Generate tokenizer and return it to preload datasets by converting them to embed
 '''
 def get_tokenizer(model):
     if "llama" in model.lower():
-        tokenizer = LlamaTokenizer.from_pretrained(model, use_fast=False)
+        if "3" in model.lower():
+            tokenizer = AutoTokenizer.from_pretrained(model, use_fast=False)
+        else: # 2 and 1
+            tokenizer = LlamaTokenizer.from_pretrained(model, use_fast=False)
         # fix for transformer 4.28.0.dev0 compatibility
         if tokenizer.bos_token_id != 1 or tokenizer.eos_token_id != 2:
             try:
@@ -106,7 +109,8 @@ def get_loaders(name, nsamples=128, seed=0, seqlen=2048, model=''):
         return torch.load(cache_file)
     except:
         pass
-
+    
+    # breakpoint()
     tokenizer = get_tokenizer(model)
     
     if 'wikitext2' in name:

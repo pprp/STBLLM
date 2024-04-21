@@ -143,14 +143,23 @@
 #     --sparsity_type 4:8 \
 #     --prune_method sparsegpt
 
-CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=1 python3 run.py /data/lujunli/hf_download/llama-2-7b \
+
+# llama7b
+# CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=1 python3 run.py /data/lujunli/hf_download/llama-2-7b \
+#     wikitext2 braq \
+#     --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --prune_method sparsegpt 
+
+
+
+# llama8b
+CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=1 python3 run.py /data/lujunli/hf_download/llama-3-8b \
     wikitext2 braq \
     --blocksize 128 \
     --salient_metric hessian \
     --sparsity_ratio 0.5 \
     --sparsity_type 4:8 \
     --prune_method sparsegpt 
-    
-    # > ./logs/sparsegpt_llama2_7b.log 2>&1
-
-# tail -f ./logs/sparsegpt_llama2_7b.log 
