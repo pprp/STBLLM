@@ -55,11 +55,13 @@ def llama_eval(model, testenc, dev,  dataset: str, log_wandb: bool = False):
 
     for i in range(len(layers)):
         print(i)
-        layer = layers[i].to(dev)
+        layer = layers[i]
         
         if f"model.layers.{i}" in model.hf_device_map:   ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
             dev = model.hf_device_map[f"model.layers.{i}"]
             inps, outs, attention_mask = inps.to(dev), outs.to(dev), attention_mask.to(dev)
+
+        layer = layer.to(dev)
 
         for j in range(nsamples):
             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
