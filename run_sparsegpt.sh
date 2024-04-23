@@ -118,7 +118,7 @@
 #     --minlayer 5 \
 #     --maxlayer 15 > ./logs/sparsegpt_f_4_l_4_bs128_mn5_mx15.log 2>&1
 
-CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=2,3 python3 run.py /data/lujunli/hf_download/llama-2-13b \
+CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0 python3 run.py /aifs4su/mmdata/hf_download/llama-1-33b \
     wikitext2 braq \
     --blocksize 128 \
     --salient_metric hessian \

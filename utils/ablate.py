@@ -7,7 +7,7 @@ import transformers
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
-from autozc.structures.tree_engine import GPTree
+# from autozc.structures.tree_engine import GPTree
 
 
 class AblateGPT:

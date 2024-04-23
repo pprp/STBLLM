@@ -10,7 +10,7 @@ from modelutils import find_layers
 from prune import prune_wanda, prune_magnitude, prune_sparsegpt, \
     prune_ablate, check_sparsity, find_layers, prune_ri, prune_ria, \
         prune_gblm, prune_pruner_zero, prune_advanced_ria
-from autozc.structures.tree_engine import GPTree
+# from autozc.structures.tree_engine import GPTree
 
 
 print('torch', version('torch'))
@@ -192,9 +192,9 @@ if __name__ == "__main__":
                 prune_ri(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
             elif "gblm" in args.prune_method:
                 prune_gblm(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
-            elif "pruner-zero" in args.prune_method:
-                engine = GPTree.load_tree('./data/best_tree.json')
-                prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
+            # elif "pruner-zero" in args.prune_method:
+            #     engine = GPTree.load_tree('./data/best_tree.json')
+            #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
             elif "advanced_ria" in args.prune_method: 
                 prune_advanced_ria(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
             else:
