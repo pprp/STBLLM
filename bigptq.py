@@ -53,6 +53,14 @@ class BRAGPTQ:
         self.H += inp.matmul(inp.t())
 
 
+    def relative_sum(A):
+        row_sums = torch.sum(A, dim=1)
+        col_sums = torch.sum(A, dim=0)
+        expanded_row_sums = row_sums.unsqueeze(1).expand_as(A)
+        expanded_col_sums = col_sums.unsqueeze(0).expand_as(A)
+        return 1 / (expanded_row_sums + expanded_col_sums)
+
+
     def fasterquant(self,
                     blocksize=128, 
                     percdamp=0.01, 
