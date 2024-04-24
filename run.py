@@ -50,28 +50,29 @@ def quant_sequential(model, dataloader, dev):
     use_cache = model.config.use_cache
     model.config.use_cache = False
 
+    
     if "opt" in args.model:
         layers = model.model.decoder.layers
-        model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(dev)
-        model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(
-            dev
-        )
-        if (
-            hasattr(model.model.decoder, "project_out")
-            and model.model.decoder.project_out
-        ):
-            model.model.decoder.project_out = model.model.decoder.project_out.to(dev)
-        if (
-            hasattr(model.model.decoder, "project_in")
-            and model.model.decoder.project_in
-        ):
-            model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
+        # model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(dev)
+        # model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(
+        #     dev
+        # )
+        # if (
+        #     hasattr(model.model.decoder, "project_out")
+        #     and model.model.decoder.project_out
+        # ):
+        #     model.model.decoder.project_out = model.model.decoder.project_out.to(dev)
+        # if (
+        #     hasattr(model.model.decoder, "project_in")
+        #     and model.model.decoder.project_in
+        # ):
+        #     model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
     elif "llama" in args.model or "Llama" in args.model:
         layers = model.model.layers
-        model.model.embed_tokens = model.model.embed_tokens.to(dev)
-        model.model.norm = model.model.norm.to(dev)
+        # model.model.embed_tokens = model.model.embed_tokens.to(dev)
+        # model.model.norm = model.model.norm.to(dev)
 
-    layers[0] = layers[0].to(dev)
+    # layers[0] = layers[0].to(dev)
 
     dtype = next(iter(model.parameters())).dtype
     inps = torch.zeros(
@@ -98,25 +99,25 @@ def quant_sequential(model, dataloader, dev):
             pass
     layers[0] = layers[0].module
 
-    layers[0] = layers[0].cpu()
+    # layers[0] = layers[0].cpu()
     
-    if "opt" in args.model:
-        model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.cpu()
-        model.model.decoder.embed_positions = model.model.decoder.embed_positions.cpu()
-        if (
-            hasattr(model.model.decoder, "project_out")
-            and model.model.decoder.project_out
-        ):
-            model.model.decoder.project_out = model.model.decoder.project_out.cpu()
-        if (
-            hasattr(model.model.decoder, "project_in")
-            and model.model.decoder.project_in
-        ):
-            model.model.decoder.project_in = model.model.decoder.project_in.cpu()
-    elif "llama" in args.model or "Llama" in args.model:
-        model.model.embed_tokens = model.model.embed_tokens.cpu()
-        model.model.norm = model.model.norm.cpu()
-    torch.cuda.empty_cache()
+    # if "opt" in args.model:
+    #     model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.cpu()
+    #     model.model.decoder.embed_positions = model.model.decoder.embed_positions.cpu()
+    #     if (
+    #         hasattr(model.model.decoder, "project_out")
+    #         and model.model.decoder.project_out
+    #     ):
+    #         model.model.decoder.project_out = model.model.decoder.project_out.cpu()
+    #     if (
+    #         hasattr(model.model.decoder, "project_in")
+    #         and model.model.decoder.project_in
+    #     ):
+    #         model.model.decoder.project_in = model.model.decoder.project_in.cpu()
+    # elif "llama" in args.model or "Llama" in args.model:
+    #     model.model.embed_tokens = model.model.embed_tokens.cpu()
+    #     model.model.norm = model.model.norm.cpu()
+    # torch.cuda.empty_cache()
 
     outs = torch.zeros_like(inps)
     attention_mask = cache["attention_mask"]
