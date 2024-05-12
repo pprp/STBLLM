@@ -40,6 +40,164 @@ def get_model(model):
 '''
 The function is employed to calibrate and quantize models layer by layer.
 '''
+# @torch.no_grad()
+# def quant_sequential(model, dataloader, dev):
+#     print("Starting ...")
+
+#     for name, module in model.named_modules():
+#         module.global_name = args.model + name
+
+#     use_cache = model.config.use_cache
+#     model.config.use_cache = False
+
+    
+#     if "opt" in args.model:
+#         layers = model.model.decoder.layers
+#         # model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(dev)
+#         # model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(
+#         #     dev
+#         # )
+#         # if (
+#         #     hasattr(model.model.decoder, "project_out")
+#         #     and model.model.decoder.project_out
+#         # ):
+#         #     model.model.decoder.project_out = model.model.decoder.project_out.to(dev)
+#         # if (
+#         #     hasattr(model.model.decoder, "project_in")
+#         #     and model.model.decoder.project_in
+#         # ):
+#         #     model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
+#     elif "llama" in args.model or "Llama" in args.model:
+#         layers = model.model.layers
+#         # model.model.embed_tokens = model.model.embed_tokens.to(dev)
+#         # model.model.norm = model.model.norm.to(dev)
+
+#     # layers[0] = layers[0].to(dev)
+
+#     dtype = next(iter(model.parameters())).dtype
+#     inps = torch.zeros(
+#         (args.nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev
+#     )
+#     cache = {"i": 0, "attention_mask": None}
+
+#     class Catcher(nn.Module):
+#         def __init__(self, module):
+#             super().__init__()
+#             self.module = module
+
+#         def forward(self, inp, **kwargs):
+#             inps[cache["i"]] = inp
+#             cache["i"] += 1
+#             cache["attention_mask"] = kwargs["attention_mask"]
+#             raise ValueError
+
+#     layers[0] = Catcher(layers[0])
+#     for batch in dataloader:
+#         try:
+#             model(batch[0].to(dev))
+#         except ValueError:
+#             pass
+#     layers[0] = layers[0].module
+
+#     # layers[0] = layers[0].cpu()
+    
+#     # if "opt" in args.model:
+#     #     model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.cpu()
+#     #     model.model.decoder.embed_positions = model.model.decoder.embed_positions.cpu()
+#     #     if (
+#     #         hasattr(model.model.decoder, "project_out")
+#     #         and model.model.decoder.project_out
+#     #     ):
+#     #         model.model.decoder.project_out = model.model.decoder.project_out.cpu()
+#     #     if (
+#     #         hasattr(model.model.decoder, "project_in")
+#     #         and model.model.decoder.project_in
+#     #     ):
+#     #         model.model.decoder.project_in = model.model.decoder.project_in.cpu()
+#     # elif "llama" in args.model or "Llama" in args.model:
+#     #     model.model.embed_tokens = model.model.embed_tokens.cpu()
+#     #     model.model.norm = model.model.norm.cpu()
+#     # torch.cuda.empty_cache()
+
+#     outs = torch.zeros_like(inps)
+#     attention_mask = cache["attention_mask"]
+
+#     print("Ready.")
+    
+#     for i in range(len(layers)):
+#         layer = layers[i]
+        
+#         if f"model.layers.{i}" in model.hf_device_map:
+#             dev = model.hf_device_map[f"model.layers.{i}"]
+#             inps, outs, attention_mask = inps.to(dev), outs.to(dev), attention_mask.to(dev)
+
+#         layer = layer.to(dev)
+
+#         # Find module of Conv or Linear;
+#         subset = find_layers(layer)
+
+#         gptq = {}
+#         for name in subset:
+#             if (
+#                 not (args.minlayer <= i < args.maxlayer and args.quant_only in name)
+#             ) == (not args.invert):
+#                 continue
+#             # 实现对神经网络权重的二值化处理，二值化是一种常见的网络压缩和加速技术
+#             braq_quantizer = Binarization(
+#                 subset[name].weight,
+#                 method=args.low_quant_method,
+#                 groupsize=groupsize,
+#             )
+#             # 使用 quantizer 对神经网络权重进行量化
+#             # 计算hessian矩阵的逆矩阵
+#             gptq[name] = BRAGPTQ(
+#                 subset[name],
+#                 braq_quantizer,
+#                 salient_metric=args.salient_metric,
+#                 disable_gptq=args.disable_gptq,
+#             )
+
+#         def add_batch(name):
+#             def tmp(_, inp, out):
+#                 gptq[name].add_batch(inp[0].data, out.data)
+
+#             return tmp
+
+#         handles = []
+#         for name in gptq:
+#             handles.append(subset[name].register_forward_hook(add_batch(name)))
+            
+#         for j in range(args.nsamples):
+#             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
+#         for h in handles:
+#             h.remove()
+
+#         for name in gptq:
+#             print(i, name)
+#             print("Quantizing ...")
+#             info = gptq[name].fasterquant(
+#                 percdamp=args.percdamp, 
+#                 blocksize=args.blocksize,
+#             )
+#             gptq[name].free()
+
+#         for j in range(args.nsamples):
+#             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
+
+#         layers[i] = layer.cpu()
+#         del layer
+#         del gptq
+#         torch.cuda.empty_cache()
+
+#         inps, outs = outs, inps
+
+#     model.config.use_cache = use_cache
+    
+#     return model
+
+'''
+The function is employed to calibrate and quantize models layer by layer.
+'''
 @torch.no_grad()
 def quant_sequential(model, dataloader, dev):
     print("Starting ...")
@@ -50,29 +208,27 @@ def quant_sequential(model, dataloader, dev):
     use_cache = model.config.use_cache
     model.config.use_cache = False
 
-    
     if "opt" in args.model:
         layers = model.model.decoder.layers
-        # model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(dev)
-        # model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(
-        #     dev
-        # )
-        # if (
-        #     hasattr(model.model.decoder, "project_out")
-        #     and model.model.decoder.project_out
-        # ):
-        #     model.model.decoder.project_out = model.model.decoder.project_out.to(dev)
-        # if (
-        #     hasattr(model.model.decoder, "project_in")
-        #     and model.model.decoder.project_in
-        # ):
-        #     model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
-    elif "llama" in args.model or "Llama" in args.model:
+        model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(dev)
+        model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(
+            dev
+        )
+        if (
+            hasattr(model.model.decoder, "project_out")
+            and model.model.decoder.project_out
+        ):
+            model.model.decoder.project_out = model.model.decoder.project_out.to(dev)
+        if (
+            hasattr(model.model.decoder, "project_in")
+            and model.model.decoder.project_in
+        ):
+            model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
+    elif "llama" in args.model:
         layers = model.model.layers
-        # model.model.embed_tokens = model.model.embed_tokens.to(dev)
-        # model.model.norm = model.model.norm.to(dev)
-
-    # layers[0] = layers[0].to(dev)
+        model.model.embed_tokens = model.model.embed_tokens.to(dev)
+        model.model.norm = model.model.norm.to(dev)
+    layers[0] = layers[0].to(dev)
 
     dtype = next(iter(model.parameters())).dtype
     inps = torch.zeros(
@@ -99,25 +255,24 @@ def quant_sequential(model, dataloader, dev):
             pass
     layers[0] = layers[0].module
 
-    # layers[0] = layers[0].cpu()
-    
-    # if "opt" in args.model:
-    #     model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.cpu()
-    #     model.model.decoder.embed_positions = model.model.decoder.embed_positions.cpu()
-    #     if (
-    #         hasattr(model.model.decoder, "project_out")
-    #         and model.model.decoder.project_out
-    #     ):
-    #         model.model.decoder.project_out = model.model.decoder.project_out.cpu()
-    #     if (
-    #         hasattr(model.model.decoder, "project_in")
-    #         and model.model.decoder.project_in
-    #     ):
-    #         model.model.decoder.project_in = model.model.decoder.project_in.cpu()
-    # elif "llama" in args.model or "Llama" in args.model:
-    #     model.model.embed_tokens = model.model.embed_tokens.cpu()
-    #     model.model.norm = model.model.norm.cpu()
-    # torch.cuda.empty_cache()
+    layers[0] = layers[0].cpu()
+    if "opt" in args.model:
+        model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.cpu()
+        model.model.decoder.embed_positions = model.model.decoder.embed_positions.cpu()
+        if (
+            hasattr(model.model.decoder, "project_out")
+            and model.model.decoder.project_out
+        ):
+            model.model.decoder.project_out = model.model.decoder.project_out.cpu()
+        if (
+            hasattr(model.model.decoder, "project_in")
+            and model.model.decoder.project_in
+        ):
+            model.model.decoder.project_in = model.model.decoder.project_in.cpu()
+    elif "llama" in args.model:
+        model.model.embed_tokens = model.model.embed_tokens.cpu()
+        model.model.norm = model.model.norm.cpu()
+    torch.cuda.empty_cache()
 
     outs = torch.zeros_like(inps)
     attention_mask = cache["attention_mask"]
@@ -125,15 +280,8 @@ def quant_sequential(model, dataloader, dev):
     print("Ready.")
     
     for i in range(len(layers)):
-        layer = layers[i]
-        
-        if f"model.layers.{i}" in model.hf_device_map:
-            dev = model.hf_device_map[f"model.layers.{i}"]
-            inps, outs, attention_mask = inps.to(dev), outs.to(dev), attention_mask.to(dev)
+        layer = layers[i].to(dev)
 
-        layer = layer.to(dev)
-
-        # Find module of Conv or Linear;
         subset = find_layers(layer)
 
         gptq = {}
@@ -142,14 +290,11 @@ def quant_sequential(model, dataloader, dev):
                 not (args.minlayer <= i < args.maxlayer and args.quant_only in name)
             ) == (not args.invert):
                 continue
-            # 实现对神经网络权重的二值化处理，二值化是一种常见的网络压缩和加速技术
             braq_quantizer = Binarization(
                 subset[name].weight,
                 method=args.low_quant_method,
                 groupsize=groupsize,
             )
-            # 使用 quantizer 对神经网络权重进行量化
-            # 计算hessian矩阵的逆矩阵
             gptq[name] = BRAGPTQ(
                 subset[name],
                 braq_quantizer,
@@ -166,7 +311,6 @@ def quant_sequential(model, dataloader, dev):
         handles = []
         for name in gptq:
             handles.append(subset[name].register_forward_hook(add_batch(name)))
-            
         for j in range(args.nsamples):
             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
         for h in handles:
@@ -192,8 +336,6 @@ def quant_sequential(model, dataloader, dev):
         inps, outs = outs, inps
 
     model.config.use_cache = use_cache
-    
-    return model
 
 if __name__ == "__main__":
     import argparse
@@ -210,6 +352,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "model", type=str, help="model to load; for example `huggyllama/llama-7b`."
     )
+    parser.add_argument('--seqlen', type=int, default=2048, help='Sequence length')
+
     parser.add_argument(
         "dataset",
         type=str,
@@ -288,6 +432,13 @@ if __name__ == "__main__":
         '--gradient_path', type=str, default="gradients/llama2/gradients_aggregrate_norm_l2_model_tinyllama-1.1b-480k-1t.pth",
         help='Path to the gradients'
     )
+    # from ria 
+    parser.add_argument("--a", type=float, default=0.5, help="exponenet of activation")
+    parser.add_argument("--reconstruction", action="store_true", help="remaining weight reconstruction based on sparsegpt")
+    parser.add_argument("--reallocation", action="store_true", help="Heuristic Channel Reallocation")
+    parser.add_argument("--fast", action="store_true")
+    parser.add_argument("--lsa", action="store_true", help="Linear Sum Assignment")
+    parser.add_argument('--semi_sparse_acc', action="store_true", help="using pytorch semi sparse acceleration. Only when sparsity type is 2:4")
 
     args = parser.parse_args()
     groupsize = args.blocksize
@@ -326,31 +477,31 @@ if __name__ == "__main__":
             seqlen=model.seqlen,
         )
         
-        # prune after quant
-        start_time = time.time()
-        if args.sparsity_ratio != 0:
-            print("pruning starts")
-            if args.prune_method == "wanda":
-                prune_wanda(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
-            elif args.prune_method == "magnitude":
-                prune_magnitude(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
-            elif args.prune_method == "sparsegpt":
-                prune_sparsegpt(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
-            elif "ablate" in args.prune_method:
-                prune_ablate(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
-            elif "ria" in args.prune_method:
-                prune_ria(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
-            elif "ri" in args.prune_method:
-                prune_ri(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
-            elif "gblm" in args.prune_method:
-                prune_gblm(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
-            # elif "pruner-zero" in args.prune_method: 
-            #     engine = GPTree.load_tree('./data/best_tree.json')
-            #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
-            else:
-                raise NotImplementedError
-        end_time = time.time()
-        print("pruning time: ", end_time - start_time)
+        # # prune after quant
+        # start_time = time.time()
+        # if args.sparsity_ratio != 0:
+        #     print("pruning starts")
+        #     if args.prune_method == "wanda":
+        #         prune_wanda(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
+        #     elif args.prune_method == "magnitude":
+        #         prune_magnitude(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+        #     elif args.prune_method == "sparsegpt":
+        #         prune_sparsegpt(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
+        #     elif "ablate" in args.prune_method:
+        #         prune_ablate(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+        #     elif "ria" in args.prune_method:
+        #         prune_ria(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+        #     elif "ri" in args.prune_method:
+        #         prune_ri(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
+        #     elif "gblm" in args.prune_method:
+        #         prune_gblm(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
+        #     # elif "pruner-zero" in args.prune_method: 
+        #     #     engine = GPTree.load_tree('./data/best_tree.json')
+        #     #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
+        #     else:
+        #         raise NotImplementedError
+        # end_time = time.time()
+        # print("pruning time: ", end_time - start_time)
         
         tick = time.time()
         model = quant_sequential(model, dataloader, device)

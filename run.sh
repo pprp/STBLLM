@@ -31,12 +31,12 @@
 
 
 # add pruning
-# CUDA_VISIBLE_DEVICES=0 python3 run.py /home/dongpeijie/share/llama-2-7b wikitext2 braq --blocksize 128 \
-#     --salient_metric hessian \
-#     --device "cuda:0" \
-#     --sparsity_ratio 0.5 \
-#     --sparsity_type 4:8 \
-#     --prune_method wanda
+CUDA_VISIBLE_DEVICES=0 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+    --salient_metric hessian \
+    --sparsity_ratio 0.5 \
+    --sparsity_type 4:8 \
+    --prune_method ria \
+    --reconstruction 
 
 # choices=["xnor", "sign", "no", "2bit", "4bit", "prune", "braq"]
 # braq: 81.97
@@ -155,11 +155,11 @@
 
 
 
-# llama8b
-CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1 python3 run.py /data/lujunli/hf_download/llama-3-8b \
-    wikitext2 braq \
-    --blocksize 128 \
-    --salient_metric hessian \
-    --sparsity_ratio 0.5 \
-    --sparsity_type 4:8 \
-    --prune_method sparsegpt 
+# # llama8b
+# CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1 python3 run.py /data/lujunli/hf_download/llama-3-8b \
+#     wikitext2 braq \
+#     --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --prune_method sparsegpt 
