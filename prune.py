@@ -5,6 +5,9 @@ import torch.nn as nn
 from utils.sparsegpt import SparseGPT 
 from utils.layerwrapper import WrappedGPT
 from datautils import get_loaders 
+from utils.quant import Quantizer
+from scipy.optimize import linear_sum_assignment
+from torch.sparse import to_sparse_semi_structured, SparseSemiStructuredTensor
 
 from utils.ablate import AblateGPT
 # from autozc.structures.tree_engine import GPTree
@@ -14,6 +17,11 @@ def lexsort(keys, dim=-1):
     for k in keys[1:]:
         idx = idx.gather(dim, k.gather(dim, idx).argsort(dim=dim, stable=True))
     return idx
+
+def maximize_total_value(matrix):
+    # linear_sum_assignment
+    row_indices, col_indices = linear_sum_assignment(matrix, maximize=True) 
+    return col_indices
 
 def find_layers(module, layers=[nn.Linear], name=''):
     """
@@ -574,11 +582,11 @@ def prune_ria(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, 
         wrapped_layers = {}
         for name in subset:
             wrapped_layers[name] = WrappedGPT(args, subset[name], layer_name=name, reconstruct=args.reconstruction)
-            # if args.gptq:
-            #     wrapped_layers[name].quantizer = Quantizer()
-            #     wrapped_layers[name].quantizer.configure(
-            #             args.wbits, perchannel=True, sym=args.sym, mse=False
-            #         )
+            if args.gptq:
+                wrapped_layers[name].quantizer = Quantizer()
+                wrapped_layers[name].quantizer.configure(
+                        args.wbits, perchannel=True, sym=args.sym, mse=False
+                    )
 
         def add_batch(name):
             def tmp(_, inp, out):
@@ -599,11 +607,11 @@ def prune_ria(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, 
             h.remove()
 
         for name in subset:
-            # if args.gptq:
-            #     print('Quantizing ...')
-            #     wrapped_layers[name].fasterquant(
-            #         percdamp=args.percdamp, groupsize=args.groupsize, actorder=args.act_order, static_groups=args.static_groups
-            #     )
+            if args.gptq:
+                print('Quantizing ...')
+                wrapped_layers[name].fasterquant(
+                    percdamp=args.percdamp, groupsize=args.groupsize, actorder=args.act_order, static_groups=args.static_groups
+                )
             
             print(f"pruning layer {i} name {name}")
             W = subset[name].weight.data.clone()
@@ -857,7 +865,7 @@ def prune_advanced_ria(args, model, dataloader, device=torch.device('cuda:0'), p
         for name in subset:
             print(f'pruning layer {i} name {name}')
             # X_norm = torch.norm(wrapped_layers[name].scaler_row.reshape((1, -1)), p=2, dim=0)
-            # W = subset[name].weight.data
+            W = subset[name].weight.data
             # W_abs = torch.abs(W)
             # sum_abs_cols = torch.sum(W_abs, dim=0, keepdim=True)
             # sum_abs_rows = torch.sum(W_abs, dim=1, keepdim=True)

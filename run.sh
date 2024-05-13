@@ -28,6 +28,8 @@
 # prune(pruner-zero): 12.63 
 # prune+quant(pruner-zero): 151.228
 # prune+quant(sparsegpt) first3 last3 mlp 不稀疏：60.278397
+# prune+quant(ria+reconstruction): 73.682800
+# prune+quant(ria+wo_reconstruction): 
 
 
 # add pruning
@@ -35,8 +37,7 @@ CUDA_VISIBLE_DEVICES=0 python3 run.py /data/lujunli/hf_download/llama-2-7b wikit
     --salient_metric hessian \
     --sparsity_ratio 0.5 \
     --sparsity_type 4:8 \
-    --prune_method ria \
-    --reconstruction 
+    --prune_method ria 
 
 # choices=["xnor", "sign", "no", "2bit", "4bit", "prune", "braq"]
 # braq: 81.97
