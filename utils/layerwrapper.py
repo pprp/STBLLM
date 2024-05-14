@@ -46,7 +46,7 @@ class WrappedGPT:
     This class wraps a GPT layer for specific operations.
     """
 
-    def __init__(self, args, layer, layer_id=0, layer_name="none", reconstruct=False):
+    def __init__(self, args, layer, layer_id=0, layer_name="none", reconstruct=True):
         self.layer = layer
         self.dev = self.layer.weight.device
         self.rows = layer.weight.data.shape[0]
@@ -138,8 +138,6 @@ class WrappedGPT:
             H = torch.cholesky_inverse(H)
             H = torch.linalg.cholesky(H, upper=True)
             Hinv = H
-        
-
 
         for i1 in range(0, self.columns, blocksize):
             i2 = min(i1 + blocksize, self.columns)
@@ -190,7 +188,12 @@ class WrappedGPT:
         self.layer.weight.data = W.reshape(self.layer.weight.shape).to(self.layer.weight.data.dtype)
         
     def fasterquant(
-        self, blocksize=128, percdamp=.01, groupsize=-1, actorder=False, static_groups=False
+        self, blocksize=128, percdamp=.01,
+        groupsize=-1, 
+        actorder=False, 
+        static_groups=False,
+        partition=3, 
+        orders=(1,1,2),
     ):
         W = self.layer.weight.data.clone()
         if isinstance(self.layer, nn.Conv2d):

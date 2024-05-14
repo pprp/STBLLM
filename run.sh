@@ -29,15 +29,62 @@
 # prune+quant(pruner-zero): 151.228
 # prune+quant(sparsegpt) first3 last3 mlp 不稀疏：60.278397
 # prune+quant(ria+reconstruction): 73.682800
-# prune+quant(ria+wo_reconstruction): 
+# prune+quant(ria+wo_reconstruction): 73.682800
+# prune+quant(ria+reallocation): 91.938477
 
+# prune(ria baseline): 8.100694
+# prune(ria only wo reallocation): 7.895372
+# prune(ria only w/ reallocation): 8.100694
 
 # add pruning
-CUDA_VISIBLE_DEVICES=0 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+# CUDA_VISIBLE_DEVICES=1 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --prune_method ria \
+#     --reconstruction \
+#     --reallocation \
+#     --lsa > ./logs/ria_reconstruction_reallocation.log 2>&1 &
+
+# CUDA_VISIBLE_DEVICES=5 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --prune_method ria \
+#     --reconstruction > ./logs/ria_reconstruction_wo_reallocation.log 2>&1 &
+
+
+# CUDA_VISIBLE_DEVICES=4 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --prune_method ria > ./logs/ria_wo_reconstruction_wo_reallocation.log 2>&1 &
+
+# CUDA_VISIBLE_DEVICES=5 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --prune_method ria \
+#     --reallocation \
+#     --lsa > ./logs/ria_wo_reconstruction_w_reallocation.log 2>&1 &
+
+# tail -f ./logs/ria_wo_reconstruction_w_reallocation.log
+
+# CUDA_VISIBLE_DEVICES=5 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --prune_method ria \
+#     --reconstruction > ./logs/weight_norm_ria_reconstruction_wo_reallocation.log 2>&1 &
+
+CUDA_VISIBLE_DEVICES=5 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
     --salient_metric hessian \
     --sparsity_ratio 0.5 \
     --sparsity_type 4:8 \
-    --prune_method ria 
+    --prune_method ria_structure \
+    --reconstruction > ./logs/ria_structure_reconstruction_wo_reallocation.log 2>&1 &
+
+tail -f ./logs/ria_structure_reconstruction_wo_reallocation.log
 
 # choices=["xnor", "sign", "no", "2bit", "4bit", "prune", "braq"]
 # braq: 81.97

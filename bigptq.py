@@ -64,7 +64,7 @@ class BRAGPTQ:
     def fasterquant(self,
                     blocksize=128, 
                     percdamp=0.01, 
-                    partition=3, 
+                    partition=3,
                     orders=(1,1,2),
                     ):
         W = self.layer.weight.data.clone()

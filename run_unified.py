@@ -7,7 +7,7 @@ from importlib.metadata import version
 from bigptq import BRAGPTQ
 from binary import Binarization
 from modelutils import find_layers
-from prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_ri, prune_ria, prune_gblm, prune_pruner_zero, prune_ria_outlier_structure_special
+from prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_ri, prune_ria, prune_gblm, prune_pruner_zero
 # from autozc.structures.tree_engine import GPTree
 
 print('torch', version('torch'))
@@ -264,7 +264,7 @@ if __name__ == "__main__":
         "--prune_method", type=str, choices=["magnitude", "wanda", "sparsegpt", 
         "ablate_mag_seq", "ablate_wanda_seq", "ablate_mag_iter", 
         "ablate_wanda_iter", "search", "pruner-zero", "ablate_prunerzero_seq", "ablate_prunerzero_iter",
-        "ri", "ria", "gblm", "ria_structure"]
+        "ri", "ria", "gblm"]
     )
     parser.add_argument(
         "--sparsity_type", type=str, choices=["unstructured", "4:8", "2:4"]
@@ -285,20 +285,6 @@ if __name__ == "__main__":
     parser.add_argument('--semi_sparse_acc', action="store_true", help="using pytorch semi sparse acceleration. Only when sparsity type is 2:4")
     parser.add_argument("--gptq", action="store_true", help="use gptq or not")
     parser.add_argument("--importance_score", type=str, default="sum", choices=["sum"])
-
-    # hyperparameters for owl
-    parser.add_argument(
-        "--Lamda",
-        default=0.08,
-        type=float,
-        help="Lamda",
-    )
-
-    parser.add_argument(
-        "--Hyper_m",
-        type=float,
-        default=3,
-    )
 
     args = parser.parse_args()
     groupsize = args.blocksize
@@ -349,14 +335,12 @@ if __name__ == "__main__":
                 prune_sparsegpt(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
             elif "ablate" in args.prune_method:
                 prune_ablate(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
-            elif "ria" == args.prune_method:
+            elif "ria" in args.prune_method:
                 prune_ria(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
-            elif "ri" == args.prune_method:
+            elif "ri" in args.prune_method:
                 prune_ri(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
             elif "gblm" in args.prune_method:
                 prune_gblm(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
-            elif "ria_structure" in args.prune_method:
-                prune_ria_outlier_structure_special(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
             # elif "pruner-zero" in args.prune_method: 
             #     engine = GPTree.load_tree('./data/best_tree.json')
             #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
