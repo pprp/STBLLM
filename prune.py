@@ -821,9 +821,7 @@ def prune_ria_outlier_structure_special(
     model.config.use_cache = False
 
     print("loading calibdation data")
-    dataloader, _ = get_loaders(
-        "c4", nsamples=args.nsamples, seed=args.seed, seqlen=2048, tokenizer=tokenizer
-    )
+    dataloader, _ = get_loaders(args.dataset,nsamples=args.nsamples,seed=args.seed,seqlen=args.seqlen, model=args.model)
     print("dataset loading complete")
     with torch.no_grad():
         if "llama" in args.model:
