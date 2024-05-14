@@ -77,16 +77,17 @@
 #     --prune_method ria \
 #     --reconstruction > ./logs/weight_norm_ria_reconstruction_wo_reallocation.log 2>&1 &
 
-CUDA_VISIBLE_DEVICES=5 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
-    --salient_metric hessian \
-    --sparsity_ratio 0.5 \
-    --sparsity_type 4:8 \
-    --Lamda 2 \
-    --Hyper_m 6 \
-    --prune_method ria_structure \
-    --reconstruction > ./logs/ria_structure_reconstruction_wo_reallocation.log 2>&1 &
+# SOTA ppl=56.353821
+# CUDA_VISIBLE_DEVICES=5 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --Lamda 2 \
+#     --Hyper_m 6 \
+#     --prune_method ria_structure \
+#     --reconstruction > ./logs/ria_structure_reconstruction_wo_reallocation.log 2>&1 &
 
-tail -f ./logs/ria_structure_reconstruction_wo_reallocation.log
+
 
 # choices=["xnor", "sign", "no", "2bit", "4bit", "prune", "braq"]
 # braq: 81.97
@@ -213,3 +214,43 @@ tail -f ./logs/ria_structure_reconstruction_wo_reallocation.log
 #     --sparsity_ratio 0.5 \
 #     --sparsity_type 4:8 \
 #     --prune_method sparsegpt 
+
+# billm 
+# CUDA_VISIBLE_DEVICES=5 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --Lamda 2 \
+#     --Hyper_m 6 \
+#     --billm \
+#     --prune_method ria_structure \
+#     --reconstruction
+    #  > ./logs/ria_structure_reconstruction_w_billmquant.log 2>&1 &
+
+# pbllm 
+# CUDA_VISIBLE_DEVICES=6 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --Lamda 2 \
+#     --Hyper_m 6 \
+#     --pbllm \
+#     --prune_method ria_structure \
+#     --reconstruction 
+    # > ./logs/ria_structure_reconstruction_w_pbllmquant.log 2>&1 &
+
+# gptq 
+CUDA_VISIBLE_DEVICES=7 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+    --salient_metric hessian \
+    --sparsity_ratio 0.5 \
+    --sparsity_type 4:8 \
+    --Lamda 2 \
+    --Hyper_m 6 \
+    --gptq \
+    --prune_method ria_structure \
+    --reconstruction \
+    --wbits 2 
+
+    # > ./logs/ria_structure_reconstruction_w_gptqquant.log 2>&1 &
+
+# tail -f ./logs/ria_structure_reconstruction_w_billmquant.log

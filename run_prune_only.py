@@ -167,9 +167,11 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    groupsize = args.blocksize
 
-    save_title = f"{args.model}_{args.dataset}_{args.low_quant_method}_{groupsize}_{args.salient_metric}"
+    # set groupsize to args
+    args.groupsize = args.blocksize
+
+    save_title = f"{args.model}_{args.dataset}_{args.low_quant_method}_{args.groupsize}_{args.salient_metric}"
     save_file = "./output/" + save_title.replace("/", "_") + ".pt"
 
     # Handling n:m sparsity

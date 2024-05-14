@@ -154,7 +154,7 @@ def quant_sequential(model, dataloader, dev):
             braq_quantizer = Binarization(
                 subset[name].weight,
                 method=args.low_quant_method,
-                groupsize=groupsize,
+                groupsize=args.groupsize,
             )
             gptq[name] = BRAGPTQ(
                 subset[name],
@@ -249,6 +249,13 @@ if __name__ == "__main__":
         default=128,
         help="Blocksize to use for adaptive mask selection.",
     )
+
+    parser.add_argument(
+        "--groupsize",
+        type=int,
+        default=128,
+        help="Blocksize to use for adaptive mask selection.",
+    )
     parser.add_argument(
         "--salient_metric",
         type=str,
@@ -331,6 +338,9 @@ if __name__ == "__main__":
         help="using pytorch semi sparse acceleration. Only when sparsity type is 2:4",
     )
     parser.add_argument("--gptq", action="store_true", help="use gptq or not")
+    parser.add_argument("--pbllm", action="store_true", help="use pbllm or not")
+    parser.add_argument("--billm", action="store_true", help="use billm or not")
+
     parser.add_argument("--importance_score", type=str, default="sum", choices=["sum"])
 
     # hyperparameters for owl
@@ -347,10 +357,34 @@ if __name__ == "__main__":
         default=3,
     )
 
-    args = parser.parse_args()
-    groupsize = args.blocksize
+    parser.add_argument("--wbits", type=int, default=4, help="weight bits")
 
-    save_title = f"{args.model}_{args.dataset}_{args.low_quant_method}_{groupsize}_{args.salient_metric}"
+    parser.add_argument("--sym", action="store_true", help="symmetric quantization")
+
+    parser.add_argument(
+        "--high_bit",
+        type=int,
+        default=8,
+    )
+
+    parser.add_argument(
+        "--act_order",
+        action="store_true",
+        help="order of activation",
+    )
+    
+    parser.add_argument(
+        "--static_groups",
+        action="store_true",
+        help="static groups",
+    )
+
+    parser.add_argument("--low_frac", type=float, default=0.8, help="Target low_frac")
+
+    args = parser.parse_args()
+    assert args.groupsize == args.blocksize, "groupsize must be equal to blocksize"
+
+    save_title = f"{args.model}_{args.dataset}_{args.low_quant_method}_{args.groupsize}_{args.salient_metric}"
     save_file = "./output/" + save_title.replace("/", "_") + ".pt"
 
     # Handling n:m sparsity
@@ -430,9 +464,9 @@ if __name__ == "__main__":
         end_time = time.time()
         print("pruning time: ", end_time - start_time)
 
-        tick = time.time()
-        model = quant_sequential(model, dataloader, device)
-        print("quantization time:", time.time() - tick, "s")
+        # tick = time.time()
+        # model = quant_sequential(model, dataloader, device)
+        # print("quantization time:", time.time() - tick, "s")
 
     for dataset in ["wikitext2"]:
         # , "ptb", "c4"]:

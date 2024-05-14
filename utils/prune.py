@@ -5,11 +5,11 @@ import torch.nn as nn
 from utils.sparsegpt import SparseGPT
 from utils.layerwrapper import WrappedGPT
 from datautils import get_loaders
-from utils.quant import Quantizer
+from utils.quant import GPTQQuantizer, LowQuantizer, HighQuantizer
 from scipy.optimize import linear_sum_assignment
 from torch.sparse import to_sparse_semi_structured, SparseSemiStructuredTensor
-
 from utils.ablate import AblateGPT
+from utils.binary import Binarization
 
 # from autozc.structures.tree_engine import GPTree
 
@@ -739,15 +739,57 @@ def prune_ria(
                     outs.to(dev),
                     position_ids.to(dev),
                 )
+
         wrapped_layers = {}
         for name in subset:
-            wrapped_layers[name] = WrappedGPT(
-                args, subset[name], layer_name=name, reconstruct=args.reconstruction
-            )
+            # check args gptq,pbllm,billm to determine the quantization method
             if args.gptq:
-                wrapped_layers[name].quantizer = Quantizer()
+                wrapped_layers[name] = WrappedGPT(
+                    args, subset[name], layer_name=name, reconstruct=args.reconstruction
+                )
+                wrapped_layers[name].quantizer = GPTQQuantizer()
                 wrapped_layers[name].quantizer.configure(
                     args.wbits, perchannel=True, sym=args.sym, mse=False
+                )
+            elif args.pbllm:
+                low_quantizer = LowQuantizer(
+                    subset[name].weight,
+                    method=args.low_quant_method,
+                    groupsize=args.groupsize,
+                )
+                high_quantizer = HighQuantizer(
+                    args.high_bit,
+                    True,
+                    False,
+                    False,
+                )
+                wrapped_layers[name] = WrappedGPT(
+                    args,
+                    subset[name],
+                    layer_name=name,
+                    reconstruct=args.reconstruction,
+                    salient_metric=args.salient_metric,
+                    low_quantizer=low_quantizer,
+                    high_quantizer=high_quantizer,
+                )
+            elif args.billm:
+                # BRAGPTQ
+                braq_quantizer = Binarization(
+                    subset[name].weight,
+                    method=args.low_quant_method,
+                    groupsize=args.groupsize,
+                )
+                wrapped_layers[name] = WrappedGPT(
+                    args,
+                    subset[name],
+                    layer_name=name,
+                    reconstruct=args.reconstruction,
+                    salient_metric=args.salient_metric,
+                    braq_quantizer=braq_quantizer,
+                )
+            else:
+                wrapped_layers[name] = WrappedGPT(
+                    args, subset[name], layer_name=name, reconstruct=args.reconstruction
                 )
 
         def add_batch(name):
@@ -777,13 +819,25 @@ def prune_ria(
 
         for name in subset:
             if args.gptq:
-                print("Quantizing ...")
+                print("Quantizing with GPTQ ...")
                 wrapped_layers[name].fasterquant(
                     percdamp=args.percdamp,
                     groupsize=args.groupsize,
                     actorder=args.act_order,
                     static_groups=args.static_groups,
                 )
+            elif args.pbllm:
+                print("Quantizing with PB-LLM ...")
+                wrapped_layers[name].lowhightquant(
+                    args.low_frac, percdamp=args.percdamp, blocksize=args.groupsize
+                )
+            elif args.billm:
+                print("Quantizing with BiLLM ...")
+                wrapped_layers[name].braqquant(
+                    percdamp=args.percdamp, blocksize=args.groupsize
+                )
+            else:
+                print("No quantization method specified.")
 
             print(f"pruning layer {i} name {name}")
             W = subset[name].weight.data.clone()
@@ -1053,13 +1107,53 @@ def prune_ria_outlier_structure_special(
 
         wrapped_layers = {}
         for name in subset:
-            wrapped_layers[name] = WrappedGPT(
-                args, subset[name], layer_name=name, reconstruct=args.reconstruction
-            )
             if args.gptq:
-                wrapped_layers[name].quantizer = Quantizer()
+                wrapped_layers[name] = WrappedGPT(
+                    args, subset[name], layer_name=name, reconstruct=args.reconstruction
+                )
+                wrapped_layers[name].quantizer = GPTQQuantizer()
                 wrapped_layers[name].quantizer.configure(
                     args.wbits, perchannel=True, sym=args.sym, mse=False
+                )
+            elif args.pbllm:
+                low_quantizer = LowQuantizer(
+                    subset[name].weight,
+                    method=args.low_quant_method,
+                    groupsize=args.groupsize,
+                )
+                high_quantizer = HighQuantizer(
+                    args.high_bit,
+                    True,
+                    False,
+                    False,
+                )
+                wrapped_layers[name] = WrappedGPT(
+                    args,
+                    subset[name],
+                    layer_name=name,
+                    reconstruct=args.reconstruction,
+                    salient_metric=args.salient_metric,
+                    low_quantizer=low_quantizer,
+                    high_quantizer=high_quantizer,
+                )
+            elif args.billm:
+                # BRAGPTQ
+                braq_quantizer = Binarization(
+                    subset[name].weight,
+                    method=args.low_quant_method,
+                    groupsize=args.groupsize,
+                )
+                wrapped_layers[name] = WrappedGPT(
+                    args,
+                    subset[name],
+                    layer_name=name,
+                    reconstruct=args.reconstruction,
+                    salient_metric=args.salient_metric,
+                    braq_quantizer=braq_quantizer,
+                )
+            else:
+                wrapped_layers[name] = WrappedGPT(
+                    args, subset[name], layer_name=name, reconstruct=args.reconstruction
                 )
 
         def add_batch(name):
@@ -1089,6 +1183,27 @@ def prune_ria_outlier_structure_special(
             h.remove()
 
         for name in subset:
+            if args.gptq:
+                print("Quantizing with GPTQ ...")
+                wrapped_layers[name].fasterquant(
+                    percdamp=args.percdamp,
+                    groupsize=args.groupsize,
+                    actorder=args.act_order,
+                    static_groups=args.static_groups,
+                )
+            elif args.pbllm:
+                print("Quantizing with PB-LLM ...")
+                wrapped_layers[name].lowhightquant(
+                    args.low_frac, percdamp=args.percdamp, blocksize=args.groupsize
+                )
+            elif args.billm:
+                print("Quantizing with BiLLM ...")
+                wrapped_layers[name].bragptqquant(
+                    percdamp=args.percdamp, blocksize=args.groupsize
+                )
+            else:
+                print("No quantization method specified.")
+
             print(f"pruning layer {i} name {name}")
             W = subset[name].weight.data
             # NOTE: WANDA

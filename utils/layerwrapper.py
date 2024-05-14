@@ -21,12 +21,20 @@ class WrappedGPT:
     This class wraps a GPT layer for specific operations.
     """
 
-    def __init__(self, args, layer, layer_id=0, 
-                 layer_name="none",
-                 reconstruct=True,
-                 braq_quantizer=None,
-                 salient_metric="hessian",
-                 disable_gptq=False):
+    def __init__(
+        self,
+        args,
+        layer,
+        layer_id=0,
+        layer_name="none",
+        reconstruct=True,
+        braq_quantizer=None,
+        salient_metric="hessian",
+        disable_gptq=False,
+        low_quantizer=None,
+        high_quantizer=None,
+        gptq_quantizer=None,
+    ):
         self.layer = layer
         self.dev = self.layer.weight.device
         self.rows = layer.weight.data.shape[0]
@@ -37,16 +45,25 @@ class WrappedGPT:
         if self.reconstruct or args.gptq:
             self.H = torch.zeros((self.columns, self.columns), device=self.dev)
         self.nsamples = 0
-        
+
         if "up" in layer_name or "gate" in layer_name:
             self.out = torch.zeros((self.rows), device=self.dev)
         self.layer_id = layer_id
         self.layer_name = layer_name
         self.sigmoid = nn.Sigmoid()
-        
-        self.braq_quantizer = braq_quantizer 
+
         self.salient_metric = salient_metric
         self.disable_gptq = disable_gptq
+
+        # GPTQ
+        self.quantizer = gptq_quantizer
+
+        # BiLLM
+        self.braq_quantizer = braq_quantizer
+
+        # PB-LLM
+        self.low_quantizer = low_quantizer
+        self.high_quantizer = high_quantizer
 
     def add_batch(self, inp, out):
         if len(inp.shape) == 2:
@@ -178,7 +195,7 @@ class WrappedGPT:
             self.layer.weight.data.dtype
         )
 
-    # NOTE: RIA
+    # NOTE: RIA - GPTQ
     def fasterquant(
         self,
         blocksize=128,
@@ -209,7 +226,6 @@ class WrappedGPT:
 
         if static_groups:
             import copy
-
             groups = []
             for i in range(0, self.columns, groupsize):
                 quantizer = copy.deepcopy(self.quantizer)
@@ -259,7 +275,7 @@ class WrappedGPT:
                             idx = perm[idx]
                         self.quantizer = groups[idx // groupsize]
 
-                q = quantize(
+                q = gptq_quantize(
                     w.unsqueeze(1),
                     self.quantizer.scale,
                     self.quantizer.zero,

@@ -10,7 +10,6 @@ index = 0
 @torch.no_grad()
 def part_mean(tensor, op="-"):
     non_zero = tensor * (tensor != 0)
-
     mean_val = non_zero.mean(-1).view(-1, 1)
 
     return mean_val
