@@ -956,8 +956,6 @@ def prune_ria_outlier_structure_special(
                 + torch.abs(W) / torch.sum(torch.abs(W), dim=1).reshape(-1, 1)
             ) * (torch.sqrt(wrapped_layers[name].scaler_row.reshape((1, -1)))) ** args.a
 
-            # layer_wmetric.append(activation_data)
-
             layer_wmetric.append(W_metric)  # step2
 
         for j in range(args.nsamples):

@@ -81,6 +81,8 @@ CUDA_VISIBLE_DEVICES=5 python3 run.py /data/lujunli/hf_download/llama-2-7b wikit
     --salient_metric hessian \
     --sparsity_ratio 0.5 \
     --sparsity_type 4:8 \
+    --Lamda 2 \
+    --Hyper_m 6 \
     --prune_method ria_structure \
     --reconstruction > ./logs/ria_structure_reconstruction_wo_reallocation.log 2>&1 &
 
