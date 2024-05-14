@@ -1,5 +1,6 @@
 import math
 import time
+
 # from exceptiongroup import catch
 import torch
 import torch.nn as nn
@@ -11,14 +12,14 @@ DEBUG = False
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
 
-'''
+"""
 BRAGPTQ is the meaning of GPTQ used Binary Residual Approximation in paper to realize 1-bit quantization
 BRAGPTQ uses structural mask to distinguish outliers and other data, and takes advantage of part of GPTQ to lower error
-'''
+"""
+
+
 class BRAGPTQ:
-    def __init__(
-        self, layer, braq_quantizer,salient_metric, disable_gptq=False
-    ):
+    def __init__(self, layer, braq_quantizer, salient_metric, disable_gptq=False):
         self.layer = layer
         self.dev = self.layer.weight.device
         W = layer.weight.data.clone()
@@ -52,7 +53,6 @@ class BRAGPTQ:
         inp = math.sqrt(2 / self.nsamples) * inp.float()
         self.H += inp.matmul(inp.t())
 
-
     def relative_sum(A):
         row_sums = torch.sum(A, dim=1)
         col_sums = torch.sum(A, dim=0)
@@ -60,13 +60,13 @@ class BRAGPTQ:
         expanded_col_sums = col_sums.unsqueeze(0).expand_as(A)
         return 1 / (expanded_row_sums + expanded_col_sums)
 
-
-    def fasterquant(self,
-                    blocksize=128, 
-                    percdamp=0.01, 
-                    partition=3,
-                    orders=(1,1,2),
-                    ):
+    def fasterquant(
+        self,
+        blocksize=128,
+        percdamp=0.01,
+        partition=3,
+        orders=(1, 1, 2),
+    ):
         W = self.layer.weight.data.clone()
         if isinstance(self.layer, nn.Conv2d):
             W = W.flatten(1)
@@ -97,8 +97,14 @@ class BRAGPTQ:
 
             st = col_st
             ed = col_ed
-            mask = torch.zeros_like(W[:, st:ed], dtype=torch.bool).unsqueeze(0).repeat_interleave(partition, dim=0)
-            mask1, mask2, mask3 = structural_guassian_distribution(W[:, st:ed], H[st:ed, st:ed], self.salient_metric, 50)
+            mask = (
+                torch.zeros_like(W[:, st:ed], dtype=torch.bool)
+                .unsqueeze(0)
+                .repeat_interleave(partition, dim=0)
+            )
+            mask1, mask2, mask3 = structural_guassian_distribution(
+                W[:, st:ed], H[st:ed, st:ed], self.salient_metric, 50
+            )
             mask[0] = mask1
             mask[1] = mask2
             mask[2] = mask3
@@ -109,11 +115,13 @@ class BRAGPTQ:
                 # RTN
                 # print("RTN")
                 w = W[:, col_st:col_ed]
-                
+
                 # from low to high group
                 q_part_groups = []
                 for i in range(mask.shape[0]):
-                    q_part_groups.append(self.braq_quantizer.quantize(w, mask[i], order=orders[i]))
+                    q_part_groups.append(
+                        self.braq_quantizer.quantize(w, mask[i], order=orders[i])
+                    )
 
                 q = torch.zeros_like(w)
                 for j in range(mask.shape[0]):
@@ -130,7 +138,9 @@ class BRAGPTQ:
                 q_part_groups = []
 
                 for i in range(mask.shape[0]):
-                    q_part_groups.append(self.braq_quantizer.quantize(W1, mask[i], order=orders[i]))
+                    q_part_groups.append(
+                        self.braq_quantizer.quantize(W1, mask[i], order=orders[i])
+                    )
 
                 for i in range(n_cols):
                     # shape of w: [oc, 1]

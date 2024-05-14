@@ -26,65 +26,76 @@ class AblateGPT:
         self.nsamples = 0
 
         self.scaler_row = torch.zeros((self.columns), device=self.dev)
-        
+
         if gradient_path is not None:
-            with open(gradient_path, 'rb') as file:
+            with open(gradient_path, "rb") as file:
                 self.gradients = torch.load(
-                    gradient_path, map_location=torch.device('cpu'))
-            self.engine = GPTree.load_tree('data/best_tree.json')
+                    gradient_path, map_location=torch.device("cpu")
+                )
+            self.engine = GPTree.load_tree("data/best_tree.json")
         else:
-            self.gradients = None 
+            self.gradients = None
 
     def add_batch(self, inp, out):
         if len(inp.shape) == 2:
             inp = inp.unsqueeze(0)
         tmp = inp.shape[0]
-        if isinstance(self.layer, nn.Linear) or isinstance(self.layer, transformers.Conv1D):
+        if isinstance(self.layer, nn.Linear) or isinstance(
+            self.layer, transformers.Conv1D
+        ):
             if len(inp.shape) == 3:
                 inp = inp.reshape((-1, inp.shape[-1]))
             inp = inp.t()
         self.H *= self.nsamples / (self.nsamples + tmp)
 
-        self.scaler_row *= self.nsamples / (self.nsamples+tmp)
+        self.scaler_row *= self.nsamples / (self.nsamples + tmp)
 
         self.nsamples += tmp
         inp = math.sqrt(2 / self.nsamples) * inp.float()
         self.H += inp.matmul(inp.t())
-        self.scaler_row += torch.norm(inp, p=2, dim=1) ** 2  / self.nsamples
+        self.scaler_row += torch.norm(inp, p=2, dim=1) ** 2 / self.nsamples
 
     def get_wanda_mask(self, sparsity, prunen, prunem):
-        W_metric = torch.abs(self.layer.weight.data) * torch.sqrt(self.scaler_row.reshape((1,-1)))
-        W_mask = (torch.zeros_like(W_metric) == 1)  ## initialize a mask to be all False
+        W_metric = torch.abs(self.layer.weight.data) * torch.sqrt(
+            self.scaler_row.reshape((1, -1))
+        )
+        W_mask = torch.zeros_like(W_metric) == 1  ## initialize a mask to be all False
         if prunen != 0:
             for ii in range(W_metric.shape[1]):
                 if ii % prunem == 0:
-                    tmp = W_metric[:,ii:(ii+prunem)].float()
-                    W_mask.scatter_(1,ii+torch.topk(tmp, prunen,dim=1, largest=False)[1], True)
+                    tmp = W_metric[:, ii : (ii + prunem)].float()
+                    W_mask.scatter_(
+                        1, ii + torch.topk(tmp, prunen, dim=1, largest=False)[1], True
+                    )
         else:
             sort_res = torch.sort(W_metric, dim=-1, stable=True)
-            indices = sort_res[1][:,:int(W_metric.shape[1]*sparsity)]
+            indices = sort_res[1][:, : int(W_metric.shape[1] * sparsity)]
             W_mask.scatter_(1, indices, True)
 
-        return W_mask 
+        return W_mask
 
     def get_mag_mask(self, sparsity, prunen, prunem):
-        W = self.layer.weight.data 
+        W = self.layer.weight.data
         W_metric = torch.abs(W)
         if prunen != 0:
-            W_mask = (torch.zeros_like(W)==1)
+            W_mask = torch.zeros_like(W) == 1
             for ii in range(W_metric.shape[1]):
                 if ii % prunem == 0:
-                    tmp = W_metric[:,ii:(ii+prunem)].float()
-                    W_mask.scatter_(1,ii+torch.topk(tmp, prunen,dim=1, largest=False)[1], True)
+                    tmp = W_metric[:, ii : (ii + prunem)].float()
+                    W_mask.scatter_(
+                        1, ii + torch.topk(tmp, prunen, dim=1, largest=False)[1], True
+                    )
         else:
-            thresh = torch.sort(W_metric.flatten().cuda())[0][int(W.numel()*sparsity)].cpu()
-            W_mask = (W_metric<=thresh)
+            thresh = torch.sort(W_metric.flatten().cuda())[0][
+                int(W.numel() * sparsity)
+            ].cpu()
+            W_mask = W_metric <= thresh
 
-        return W_mask 
-    
+        return W_mask
+
     # def get_prunerzero_mask(self, sparsity, prunen, prunem, indexed_name):
-    #     W = self.layer.weight.data 
-    #     # prepare for G gradient 
+    #     W = self.layer.weight.data
+    #     # prepare for G gradient
     #     assert self.gradients is not None, "Gradient is not provided."
     #     G = self.gradients[indexed_name]
     #     # W_metric = torch.abs(W)
@@ -102,11 +113,18 @@ class AblateGPT:
     #         thresh = torch.sort(W_metric.flatten().cuda())[0][int(W.numel()*sparsity)].cpu()
     #         W_mask = (W_metric<=thresh)
 
-    #     return W_mask 
-    
+    #     return W_mask
 
     def fasterprune(
-        self, args, sparsity, mask=None, prune_n=0, prune_m=0, blocksize=128, percdamp=.01, indexed_name=None,
+        self,
+        args,
+        sparsity,
+        mask=None,
+        prune_n=0,
+        prune_m=0,
+        blocksize=128,
+        percdamp=0.01,
+        indexed_name=None,
     ):
         W = self.layer.weight.data.clone()
         G = self.gradients[indexed_name]
@@ -144,21 +162,23 @@ class AblateGPT:
             Losses1 = torch.zeros_like(W1)
             Hinv1 = Hinv[i1:i2, i1:i2]
 
-            if prune_n == 0 or mask is not None: 
+            if prune_n == 0 or mask is not None:
                 if mask is not None:
                     mask1 = mask[:, i1:i2]
                 else:
                     # tmp = W1 ** 2 / (torch.diag(Hinv1).reshape((1, -1))) ** 2
                     if "wanda" in args.prune_method:
-                        tmp = torch.abs(W1) * torch.sqrt(self.scaler_row[i1:i2].reshape((1,-1)))
+                        tmp = torch.abs(W1) * torch.sqrt(
+                            self.scaler_row[i1:i2].reshape((1, -1))
+                        )
                     elif "mag" in args.prune_method:
                         tmp = torch.abs(W1)
-                    elif "prunerzero" in args.prune_method: 
+                    elif "prunerzero" in args.prune_method:
                         tmp = self.engine.forward(
                             W1.to(dtype=torch.float32),
-                            G[:, i1:i2].to(dtype=torch.float32, device=W1.device)
+                            G[:, i1:i2].to(dtype=torch.float32, device=W1.device),
                         )
-                        
+
                     thresh = torch.sort(tmp.flatten())[0][int(tmp.numel() * sparsity)]
                     mask1 = tmp <= thresh
             else:
@@ -171,18 +191,24 @@ class AblateGPT:
                 if prune_n != 0 and i % prune_m == 0 and mask is None:
                     # tmp = W1[:, i:(i + prune_m)] ** 2 / (torch.diag(Hinv1)[i:(i + prune_m)].reshape((1, -1))) ** 2
                     if "wanda" in args.prune_method:
-                        tmp = torch.abs(W1[:, i:(i+prune_m)]) * torch.sqrt(self.scaler_row[(i+i1):(i+i1+prune_m)].reshape((1,-1)))
+                        tmp = torch.abs(W1[:, i : (i + prune_m)]) * torch.sqrt(
+                            self.scaler_row[(i + i1) : (i + i1 + prune_m)].reshape(
+                                (1, -1)
+                            )
+                        )
                     elif "mag" in args.prune_method:
-                        tmp = torch.abs(W1[:, i:(i+prune_m)])
-                    mask1.scatter_(1, i + torch.topk(tmp, prune_n, dim=1, largest=False)[1], True)
+                        tmp = torch.abs(W1[:, i : (i + prune_m)])
+                    mask1.scatter_(
+                        1, i + torch.topk(tmp, prune_n, dim=1, largest=False)[1], True
+                    )
 
                 q = w.clone()
                 q[mask1[:, i]] = 0
 
                 Q1[:, i] = q
-                Losses1[:, i] = (w - q) ** 2 / d ** 2
+                Losses1[:, i] = (w - q) ** 2 / d**2
 
-                err1 = (w - q) / d 
+                err1 = (w - q) / d
                 W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
                 Err1[:, i] = err1
 
@@ -194,7 +220,9 @@ class AblateGPT:
         torch.cuda.synchronize()
         if isinstance(self.layer, transformers.Conv1D):
             W = W.t()
-        self.layer.weight.data = W.reshape(self.layer.weight.shape).to(self.layer.weight.data.dtype)
+        self.layer.weight.data = W.reshape(self.layer.weight.shape).to(
+            self.layer.weight.data.dtype
+        )
 
     def free(self):
         self.H = None

@@ -7,13 +7,26 @@ from importlib.metadata import version
 from utils.bigptq import BRAGPTQ
 from utils.binary import Binarization
 from modelutils import find_layers
-from utils.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers, prune_ri, prune_ria, prune_gblm, prune_pruner_zero
+from utils.prune import (
+    prune_wanda,
+    prune_magnitude,
+    prune_sparsegpt,
+    prune_ablate,
+    check_sparsity,
+    find_layers,
+    prune_ri,
+    prune_ria,
+    prune_gblm,
+    prune_pruner_zero,
+)
+
 # from autozc.structures.tree_engine import GPTree
 
-print('torch', version('torch'))
-print('transformers', version('transformers'))
-print('accelerate', version('accelerate'))
-print('# of gpus: ', torch.cuda.device_count())
+print("torch", version("torch"))
+print("transformers", version("transformers"))
+print("accelerate", version("accelerate"))
+print("# of gpus: ", torch.cuda.device_count())
+
 
 def get_model(model):
     import torch
@@ -31,15 +44,20 @@ def get_model(model):
         model.seqlen = model.config.max_position_embeddings
     elif "llama" in model or "Llama" in model:
         from transformers import LlamaForCausalLM
-        model = LlamaForCausalLM.from_pretrained(model, torch_dtype=torch.float16, device_map="auto")
+
+        model = LlamaForCausalLM.from_pretrained(
+            model, torch_dtype=torch.float16, device_map="auto"
+        )
         model.seqlen = 2048
 
     return model
 
 
-'''
+"""
 The function is employed to calibrate and quantize models layer by layer.
-'''
+"""
+
+
 @torch.no_grad()
 def quant_sequential(model, dataloader, dev):
     print("Starting ...")
@@ -120,7 +138,7 @@ def quant_sequential(model, dataloader, dev):
     attention_mask = cache["attention_mask"]
 
     print("Ready.")
-    
+
     for i in range(len(layers)):
         layer = layers[i].to(dev)
 
@@ -163,7 +181,7 @@ def quant_sequential(model, dataloader, dev):
             print(i, name)
             print("Quantizing ...")
             info = gptq[name].fasterquant(
-                percdamp=args.percdamp, 
+                percdamp=args.percdamp,
                 blocksize=args.blocksize,
             )
             gptq[name].free()
@@ -179,24 +197,25 @@ def quant_sequential(model, dataloader, dev):
         inps, outs = outs, inps
 
     model.config.use_cache = use_cache
-    return model 
+    return model
+
 
 if __name__ == "__main__":
     import argparse
     from datautils import *
 
     def list_of_ints(arg):
-        return list(map(int, arg.split(',')))
-    
+        return list(map(int, arg.split(",")))
+
     def list_of_floats(arg):
-        return list(map(float, arg.split(',')))
+        return list(map(float, arg.split(",")))
 
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "model", type=str, help="model to load; for example `huggyllama/llama-7b`."
     )
-    parser.add_argument('--seqlen', type=int, default=2048, help='Sequence length')
+    parser.add_argument("--seqlen", type=int, default=2048, help="Sequence length")
 
     parser.add_argument(
         "dataset",
@@ -261,28 +280,54 @@ if __name__ == "__main__":
         "--log_wandb", action="store_true", help="Whether to log to wandb."
     )
     parser.add_argument(
-        "--prune_method", type=str, choices=["magnitude", "wanda", "sparsegpt", 
-        "ablate_mag_seq", "ablate_wanda_seq", "ablate_mag_iter", 
-        "ablate_wanda_iter", "search", "pruner-zero", "ablate_prunerzero_seq", "ablate_prunerzero_iter",
-        "ri", "ria", "gblm"]
+        "--prune_method",
+        type=str,
+        choices=[
+            "magnitude",
+            "wanda",
+            "sparsegpt",
+            "ablate_mag_seq",
+            "ablate_wanda_seq",
+            "ablate_mag_iter",
+            "ablate_wanda_iter",
+            "search",
+            "pruner-zero",
+            "ablate_prunerzero_seq",
+            "ablate_prunerzero_iter",
+            "ri",
+            "ria",
+            "gblm",
+        ],
     )
     parser.add_argument(
         "--sparsity_type", type=str, choices=["unstructured", "4:8", "2:4"]
     )
     parser.add_argument(
-        '--sparsity_ratio', type=float, default=0, help='Sparsity level'
+        "--sparsity_ratio", type=float, default=0, help="Sparsity level"
     )
     parser.add_argument(
-        '--gradient_path', type=str, default="gradients/llama2/gradients_aggregrate_norm_l2_model_tinyllama-1.1b-480k-1t.pth",
-        help='Path to the gradients'
+        "--gradient_path",
+        type=str,
+        default="gradients/llama2/gradients_aggregrate_norm_l2_model_tinyllama-1.1b-480k-1t.pth",
+        help="Path to the gradients",
     )
-    # from ria 
+    # from ria
     parser.add_argument("--a", type=float, default=0.5, help="exponenet of activation")
-    parser.add_argument("--reconstruction", action="store_true", help="remaining weight reconstruction based on sparsegpt")
-    parser.add_argument("--reallocation", action="store_true", help="Heuristic Channel Reallocation")
+    parser.add_argument(
+        "--reconstruction",
+        action="store_true",
+        help="remaining weight reconstruction based on sparsegpt",
+    )
+    parser.add_argument(
+        "--reallocation", action="store_true", help="Heuristic Channel Reallocation"
+    )
     parser.add_argument("--fast", action="store_true")
     parser.add_argument("--lsa", action="store_true", help="Linear Sum Assignment")
-    parser.add_argument('--semi_sparse_acc', action="store_true", help="using pytorch semi sparse acceleration. Only when sparsity type is 2:4")
+    parser.add_argument(
+        "--semi_sparse_acc",
+        action="store_true",
+        help="using pytorch semi sparse acceleration. Only when sparsity type is 2:4",
+    )
     parser.add_argument("--gptq", action="store_true", help="use gptq or not")
     parser.add_argument("--importance_score", type=str, default="sum", choices=["sum"])
 
@@ -291,30 +336,32 @@ if __name__ == "__main__":
 
     save_title = f"{args.model}_{args.dataset}_{args.low_quant_method}_{groupsize}_{args.salient_metric}"
     save_file = "./output/" + save_title.replace("/", "_") + ".pt"
-    
+
     # Handling n:m sparsity
     prune_n, prune_m = 0, 0
     if args.sparsity_type != "unstructured":
-        assert args.sparsity_ratio == 0.5, "sparsity ratio must be 0.5 for structured N:M sparsity"
+        assert (
+            args.sparsity_ratio == 0.5
+        ), "sparsity ratio must be 0.5 for structured N:M sparsity"
         prune_n, prune_m = map(int, args.sparsity_type.split(":"))
-    
-    
+
     if args.load_quantized:
         model = get_model(save_file)
         model.eval()
-    else: # braq
+    else:  # braq
         model = get_model(args.model)
         tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
         model.eval()
         print(f"Available CUDA devices: {torch.cuda.device_count()}")
-        
-        if "65b" in args.model or \
-            "70b" in args.model:              # for 30b and 65b we use device_map to load onto multiple A6000 GPUs, thus the processing here.
+
+        if (
+            "65b" in args.model or "70b" in args.model
+        ):  # for 30b and 65b we use device_map to load onto multiple A6000 GPUs, thus the processing here.
             device = model.hf_device_map["lm_head"]
             print("use device ", device)
         else:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
+
         dataloader, testloader = get_loaders(
             args.dataset,
             nsamples=args.nsamples,
@@ -322,49 +369,64 @@ if __name__ == "__main__":
             model=args.model,
             seqlen=model.seqlen,
         )
-        
+
         # prune after quant
         start_time = time.time()
         if args.sparsity_ratio != 0:
             print("pruning starts")
             if args.prune_method == "wanda":
-                prune_wanda(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
+                prune_wanda(
+                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+                )
             elif args.prune_method == "magnitude":
-                prune_magnitude(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+                prune_magnitude(
+                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+                )
             elif args.prune_method == "sparsegpt":
-                prune_sparsegpt(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
+                prune_sparsegpt(
+                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+                )
             elif "ablate" in args.prune_method:
-                prune_ablate(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+                prune_ablate(
+                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+                )
             elif "ria" in args.prune_method:
-                prune_ria(args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m)
+                prune_ria(
+                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+                )
             elif "ri" in args.prune_method:
-                prune_ri(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
+                prune_ri(
+                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+                )
             elif "gblm" in args.prune_method:
-                prune_gblm(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m)
-            # elif "pruner-zero" in args.prune_method: 
+                prune_gblm(
+                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+                )
+            # elif "pruner-zero" in args.prune_method:
             #     engine = GPTree.load_tree('./data/best_tree.json')
             #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
             else:
                 raise NotImplementedError
         end_time = time.time()
         print("pruning time: ", end_time - start_time)
-        
+
         tick = time.time()
         model = quant_sequential(model, dataloader, device)
         print("quantization time:", time.time() - tick, "s")
 
-
     for dataset in ["wikitext2"]:
-                    # , "ptb", "c4"]:
+        # , "ptb", "c4"]:
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, seqlen=model.seqlen, model=args.model
         )
         print(dataset)
         if "opt" in args.model:
             from eval_ppl_utils import opt_eval
+
             opt_eval(model, testloader, device, dataset, args.log_wandb)
         elif "llama" in args.model or "Llama" in args.model:
             from eval_ppl_utils import llama_eval
+
             llama_eval(model, testloader, device, dataset, args.log_wandb)
 
     if args.save:
