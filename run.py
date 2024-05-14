@@ -7,7 +7,7 @@ from importlib.metadata import version
 from utils.bigptq import BRAGPTQ
 from binary import Binarization
 from modelutils import find_layers
-from prune import (
+from utils.prune import (
     prune_wanda,
     prune_magnitude,
     prune_sparsegpt,
