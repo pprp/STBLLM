@@ -5,7 +5,7 @@ import torch.nn as nn
 from importlib.metadata import version
 
 from utils.bigptq import BRAGPTQ
-from binary import Binarization
+from utils.binary import Binarization
 from modelutils import find_layers
 from utils.prune import prune_wanda, prune_magnitude, prune_sparsegpt, \
     prune_ablate, check_sparsity, find_layers, prune_ri, prune_ria, \
