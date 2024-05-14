@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from importlib.metadata import version
 
-from bigptq import BRAGPTQ
+from utils.bigptq import BRAGPTQ
 from binary import Binarization
 from modelutils import find_layers
 from prune import prune_wanda, prune_magnitude, prune_sparsegpt, \
