@@ -53,19 +53,13 @@ class BRAGPTQ:
         inp = math.sqrt(2 / self.nsamples) * inp.float()
         self.H += inp.matmul(inp.t())
 
-    def relative_sum(A):
-        row_sums = torch.sum(A, dim=1)
-        col_sums = torch.sum(A, dim=0)
-        expanded_row_sums = row_sums.unsqueeze(1).expand_as(A)
-        expanded_col_sums = col_sums.unsqueeze(0).expand_as(A)
-        return 1 / (expanded_row_sums + expanded_col_sums)
 
     def fasterquant(
         self,
         blocksize=128,
         percdamp=0.01,
-        partition=4,
-        orders=(1, 1, 2, 2),
+        partition=3,
+        orders=(1, 1, 2),
     ):
         W = self.layer.weight.data.clone()
         if isinstance(self.layer, nn.Conv2d):
@@ -102,13 +96,19 @@ class BRAGPTQ:
                 .unsqueeze(0)
                 .repeat_interleave(partition, dim=0)
             )
-            mask1, mask2, mask3, mask4 = structural_guassian_distribution(
+            # mask1, mask2, mask3, mask4 = structural_guassian_distribution(
+            #     W[:, st:ed], H[st:ed, st:ed], self.salient_metric, 50
+            # )
+            # mask[0] = mask1
+            # mask[1] = mask2
+            # mask[2] = mask3
+            # mask[3] = mask4 
+            mask1, mask2, mask3 = structural_guassian_distribution(
                 W[:, st:ed], H[st:ed, st:ed], self.salient_metric, 50
             )
             mask[0] = mask1
             mask[1] = mask2
             mask[2] = mask3
-            mask[3] = mask4 
 
             assert self.braq_quantizer.groupsize % blocksize == 0
 
@@ -139,6 +139,12 @@ class BRAGPTQ:
                 q_part_groups = []
 
                 for i in range(mask.shape[0]):
+                    # if i == 0 or i == 1:
+                    #     self.braq_quantizer.method = "braq"
+                    # elif i == 2:
+                    #     self.braq_quantizer.method = "2bit"
+                    # else:
+                    #     raise ValueError("Invalid method")
                     q_part_groups.append(
                         self.braq_quantizer.quantize(W1, mask[i], order=orders[i])
                     )

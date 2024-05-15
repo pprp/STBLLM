@@ -260,15 +260,15 @@
 
 
 # 2bit 49.682358 for tinyllama
-CUDA_VISIBLE_DEVICES=7 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+CUDA_VISIBLE_DEVICES=6 python3 run.py /data/lujunli/hf_download/llama-2-7b c4 braq --blocksize 128 \
     --salient_metric hessian \
     --sparsity_ratio 0.5 \
-    --sparsity_type 4:8 \
-    --Lamda 2 \
-    --Hyper_m 6 \
-    --prune_method ria_structure \
-    --reconstruction
+    --sparsity_type 4:8
+    # --prune_method ria_structure \
+    # --reconstruction
     
+    # --Lamda 2 \
+    # --Hyper_m 6 \
 #      \
 #     --percdamp 0.01 \
 #     --high_bit 2 > ./logs/ria_structure_reconstruction_billm_braq.log 2>&1 &

@@ -182,7 +182,7 @@ def quant_sequential_braqgptq(model, dataloader, dev):
 
         for name in gptq:
             print(i, name)
-            print("Quantizing ...")
+            print(f"Quantizing the layer {name} ...")
             info = gptq[name].fasterquant(
                 percdamp=args.percdamp,
                 blocksize=args.blocksize,
@@ -625,7 +625,7 @@ if __name__ == "__main__":
         # end_time = time.time()
         # print("pruning time: ", end_time - start_time)
 
-        print("quantizing ...")
+        print("Begin quantizing ...")
         tick = time.time()
         model = quant_sequential_braqgptq(model, dataloader, device)
         print("quantization time:", time.time() - tick, "s")
