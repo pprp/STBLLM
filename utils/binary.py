@@ -4,8 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-index = 0
-
 
 @torch.no_grad()
 def part_mean(tensor, op="-"):
@@ -20,8 +18,6 @@ def high_order_residual(x, mask, order=2):
     sum_order = torch.zeros_like(x)
     new_matrix = x.clone()
     new_matrix = new_matrix * mask
-    global index
-    index += 1
     for od in range(order):
         residual = new_matrix - sum_order
         masked_x_tensor = torch.where(mask, residual, torch.tensor(float("nan")))

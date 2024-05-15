@@ -20,6 +20,9 @@ from utils.prune import (
     prune_pruner_zero,
     prune_ria_outlier_structure_special,
 )
+from utils.layerwrapper import WrappedGPT
+from utils.quant import GPTQQuantizer, LowQuantizer, HighQuantizer
+
 
 # from autozc.structures.tree_engine import GPTree
 
@@ -40,7 +43,6 @@ def get_model(model):
     torch.nn.init.normal_ = skip
     if "opt" in model:
         from transformers import OPTForCausalLM
-
         model = OPTForCausalLM.from_pretrained(model, torch_dtype="auto")
         model.seqlen = model.config.max_position_embeddings
     elif "llama" in model or "Llama" in model:
@@ -60,7 +62,7 @@ The function is employed to calibrate and quantize models layer by layer.
 
 
 @torch.no_grad()
-def quant_sequential(model, dataloader, dev):
+def quant_sequential_braqgptq(model, dataloader, dev):
     print("Starting ...")
 
     for name, module in model.named_modules():
@@ -199,6 +201,165 @@ def quant_sequential(model, dataloader, dev):
 
     model.config.use_cache = use_cache
     return model
+
+
+@torch.no_grad()
+def quant_sequential_pbllm(model, dataloader, dev):
+    print("Starting ...")
+
+    for name, module in model.named_modules():
+        module.global_name = args.model + name
+
+    use_cache = model.config.use_cache
+    model.config.use_cache = False
+
+    if "opt" in args.model:
+        layers = model.model.decoder.layers
+        model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(dev)
+        model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(
+            dev
+        )
+        if (
+            hasattr(model.model.decoder, "project_out")
+            and model.model.decoder.project_out
+        ):
+            model.model.decoder.project_out = model.model.decoder.project_out.to(dev)
+        if (
+            hasattr(model.model.decoder, "project_in")
+            and model.model.decoder.project_in
+        ):
+            model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
+    elif "llama" in args.model:
+        layers = model.model.layers
+        model.model.embed_tokens = model.model.embed_tokens.to(dev)
+        model.model.norm = model.model.norm.to(dev)
+    layers[0] = layers[0].to(dev)
+
+    dtype = next(iter(model.parameters())).dtype
+    inps = torch.zeros(
+        (args.nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev
+    )
+    cache = {"i": 0, "attention_mask": None}
+
+    class Catcher(nn.Module):
+        def __init__(self, module):
+            super().__init__()
+            self.module = module
+
+        def forward(self, inp, **kwargs):
+            inps[cache["i"]] = inp
+            cache["i"] += 1
+            cache["attention_mask"] = kwargs["attention_mask"]
+            raise ValueError
+
+    layers[0] = Catcher(layers[0])
+    for batch in dataloader:
+        try:
+            model(batch[0].to(dev))
+        except ValueError:
+            pass
+    layers[0] = layers[0].module
+
+    layers[0] = layers[0].cpu()
+    if "opt" in args.model:
+        model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.cpu()
+        model.model.decoder.embed_positions = model.model.decoder.embed_positions.cpu()
+        if (
+            hasattr(model.model.decoder, "project_out")
+            and model.model.decoder.project_out
+        ):
+            model.model.decoder.project_out = model.model.decoder.project_out.cpu()
+        if (
+            hasattr(model.model.decoder, "project_in")
+            and model.model.decoder.project_in
+        ):
+            model.model.decoder.project_in = model.model.decoder.project_in.cpu()
+    elif "llama" in args.model:
+        model.model.embed_tokens = model.model.embed_tokens.cpu()
+        model.model.norm = model.model.norm.cpu()
+    torch.cuda.empty_cache()
+
+    outs = torch.zeros_like(inps)
+    attention_mask = cache["attention_mask"]
+
+    print("Ready.")
+
+    for i in range(len(layers)):
+        layer = layers[i].to(dev)
+
+        subset = find_layers(layer)
+
+        wrapped_layers = {}
+        for name in subset:
+            if (
+                not (args.minlayer <= i < args.maxlayer and args.quant_only in name)
+            ) == (not args.invert):
+                continue
+
+            low_quantizer = LowQuantizer(
+                subset[name].weight,
+                method=args.low_quant_method,
+                groupsize=args.groupsize,
+            )
+            
+            # low_quantizer = Binarization(
+            #     subset[name].weight,
+            #     method=args.low_quant_method,
+            #     groupsize=args.groupsize,
+            # )
+            
+            high_quantizer = HighQuantizer(
+                args.high_bit,
+                perchannel=True,
+                sym=False,
+                mse=False,
+            )
+            wrapped_layers[name] = WrappedGPT(
+                args,
+                subset[name],
+                layer_name=name,
+                reconstruct=args.reconstruction,
+                salient_metric=args.salient_metric,
+                low_quantizer=low_quantizer,
+                high_quantizer=high_quantizer,
+            )
+
+        def add_batch(name):
+            def tmp(_, inp, out):
+                wrapped_layers[name].add_batch(inp[0].data, out.data)
+
+            return tmp
+
+        handles = []
+        for name in wrapped_layers:
+            handles.append(subset[name].register_forward_hook(add_batch(name)))
+
+        for j in range(args.nsamples):
+            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
+        for h in handles:
+            h.remove()
+
+        for name in wrapped_layers:
+            print(i, name)
+            print("Quantizing ...")
+            info = wrapped_layers[name].lowhightquant_v2(
+                args.low_frac, percdamp=args.percdamp, blocksize=args.groupsize
+            )
+            wrapped_layers[name].free()
+
+        for j in range(args.nsamples):
+            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
+
+        layers[i] = layer.cpu()
+        del layer
+        del wrapped_layers
+        torch.cuda.empty_cache()
+
+        inps, outs = outs, inps
+
+    model.config.use_cache = use_cache
+    return model
+
 
 
 if __name__ == "__main__":
@@ -379,7 +540,7 @@ if __name__ == "__main__":
         help="static groups",
     )
 
-    parser.add_argument("--low_frac", type=float, default=0.8, help="Target low_frac")
+    parser.add_argument("--low_frac", type=float, default=0.95, help="Target low_frac")
 
     args = parser.parse_args()
     assert args.groupsize == args.blocksize, "groupsize must be equal to blocksize"
@@ -420,53 +581,54 @@ if __name__ == "__main__":
             seqlen=model.seqlen,
         )
 
-        # prune after quant
-        start_time = time.time()
-        if args.sparsity_ratio != 0:
-            print("pruning starts")
-            if args.prune_method == "wanda":
-                prune_wanda(
-                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
-                )
-            elif args.prune_method == "magnitude":
-                prune_magnitude(
-                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
-                )
-            elif args.prune_method == "sparsegpt":
-                prune_sparsegpt(
-                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
-                )
-            elif "ablate" in args.prune_method:
-                prune_ablate(
-                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
-                )
-            elif "ria" == args.prune_method:
-                prune_ria(
-                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
-                )
-            elif "ri" == args.prune_method:
-                prune_ri(
-                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
-                )
-            elif "gblm" in args.prune_method:
-                prune_gblm(
-                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
-                )
-            elif "ria_structure" in args.prune_method:
-                prune_ria_outlier_structure_special(
-                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
-                )
-            # elif "pruner-zero" in args.prune_method:
-            #     engine = GPTree.load_tree('./data/best_tree.json')
-            #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
-            else:
-                raise NotImplementedError
-        end_time = time.time()
-        print("pruning time: ", end_time - start_time)
+        # # prune after quant
+        # start_time = time.time()
+        # if args.sparsity_ratio != 0:
+        #     print("pruning starts")
+        #     if args.prune_method == "wanda":
+        #         prune_wanda(
+        #             args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+        #         )
+        #     elif args.prune_method == "magnitude":
+        #         prune_magnitude(
+        #             args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+        #         )
+        #     elif args.prune_method == "sparsegpt":
+        #         prune_sparsegpt(
+        #             args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+        #         )
+        #     elif "ablate" in args.prune_method:
+        #         prune_ablate(
+        #             args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+        #         )
+        #     elif "ria" == args.prune_method:
+        #         prune_ria(
+        #             args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+        #         )
+        #     elif "ri" == args.prune_method:
+        #         prune_ri(
+        #             args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+        #         )
+        #     elif "gblm" in args.prune_method:
+        #         prune_gblm(
+        #             args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+        #         )
+        #     elif "ria_structure" in args.prune_method:
+        #         prune_ria_outlier_structure_special(
+        #             args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+        #         )
+        #     # elif "pruner-zero" in args.prune_method:
+        #     #     engine = GPTree.load_tree('./data/best_tree.json')
+        #     #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
+        #     else:
+        #         raise NotImplementedError
+        # end_time = time.time()
+        # print("pruning time: ", end_time - start_time)
 
-        # tick = time.time()
-        # model = quant_sequential(model, dataloader, device)
-        # print("quantization time:", time.time() - tick, "s")
+        print("quantizing ...")
+        tick = time.time()
+        model = quant_sequential_pbllm(model, dataloader, device)
+        print("quantization time:", time.time() - tick, "s")
 
     for dataset in ["wikitext2"]:
         # , "ptb", "c4"]:

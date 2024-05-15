@@ -216,6 +216,7 @@
 #     --prune_method sparsegpt 
 
 # billm 
+# ppl = 200
 # CUDA_VISIBLE_DEVICES=5 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
 #     --salient_metric hessian \
 #     --sparsity_ratio 0.5 \
@@ -240,17 +241,33 @@
     # > ./logs/ria_structure_reconstruction_w_pbllmquant.log 2>&1 &
 
 # gptq 
+# 4 bit ppl=8
+# 2 bit ppl=186
+# CUDA_VISIBLE_DEVICES=7 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8 \
+#     --Lamda 2 \
+#     --Hyper_m 6 \
+#     --gptq \
+#     --prune_method ria_structure \
+#     --reconstruction \
+#     --wbits 2 
+
+    # > ./logs/ria_structure_reconstruction_w_gptqquant.log 2>&1 &
+
+# tail -f ./logs/ria_structure_reconstruction_w_billmquant.log
+
+
 CUDA_VISIBLE_DEVICES=7 python3 run.py /data/lujunli/hf_download/llama-2-7b wikitext2 braq --blocksize 128 \
     --salient_metric hessian \
     --sparsity_ratio 0.5 \
     --sparsity_type 4:8 \
     --Lamda 2 \
     --Hyper_m 6 \
-    --gptq \
     --prune_method ria_structure \
     --reconstruction \
-    --wbits 2 
+    --percdamp 0.02 \
+    --high_bit 2 > ./logs/ria_structure_reconstruction_pbllm_2bit.log 2>&1 &
 
-    # > ./logs/ria_structure_reconstruction_w_gptqquant.log 2>&1 &
-
-# tail -f ./logs/ria_structure_reconstruction_w_billmquant.log
+tail -f ./logs/ria_structure_reconstruction_pbllm_2bit.log

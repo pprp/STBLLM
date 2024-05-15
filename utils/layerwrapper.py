@@ -11,7 +11,7 @@ from utils.structure import structural_guassian_distribution
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
 
-OUTPUTMASK = 1
+OUTPUTMASK = 0
 DEBUG = False
 
 
@@ -335,6 +335,7 @@ class WrappedGPT:
         H = torch.cholesky_inverse(H)
         H = torch.linalg.cholesky(H, upper=True)
         Hinv = H
+        
         mask = None
         mask = torch.zeros_like(W, dtype=torch.bool)
         for groupi in range(self.low_quantizer.n_groups):
@@ -356,18 +357,10 @@ class WrappedGPT:
             else:
                 raise NotImplementedError
             assert self.low_quantizer.groupsize % blocksize == 0
-            self.low_quantizer.calibrate(
-                W[:, st:ed] * mask[:, st:ed], mask[:, st:ed], groupi=groupi
-            )
+            # self.low_quantizer.calibrate(
+            #     W[:, st:ed] * mask[:, st:ed], mask[:, st:ed], groupi=groupi
+            # )
             # self.low_quantizer.calibrate(W[:,st:ed],mask[:,st:ed],groupi=groupi)
-
-        if OUTPUTMASK:
-            if os.path.exists("./outputs/mask") == False:
-                os.mkdir("./outputs/mask")
-            torch.save(
-                mask,
-                f"./outputs/mask/mask_{low_frac}_{self.layer.global_name.replace('/','_')}.pkl",
-            )
 
         for blocki, col_st in enumerate(range(0, self.columns, blocksize)):
             col_ed = min(col_st + blocksize, self.columns)
@@ -510,7 +503,6 @@ class WrappedGPT:
                 Hinv1 = Hinv[col_st:col_ed, col_st:col_ed]
 
                 q_part_groups = []
-
                 for i in range(mask.shape[0]):
                     q_part_groups.append(
                         self.braq_quantizer.quantize(W1, mask[i], order=orders[i])
@@ -560,6 +552,154 @@ class WrappedGPT:
             del W1, Q1, W, Err1, Losses1, Hinv1
         del H, Hinv
         torch.cuda.empty_cache()
+        return {"error": torch.sum(Losses).item()}
+
+# NOTE: PB-LLM + Bell-ship Spliting
+    def lowhightquant_v2(self, low_frac, blocksize=128, percdamp=0.01,
+                         partition=3, orders=(1, 1, 2)):
+        W = self.layer.weight.data.clone()
+        if isinstance(self.layer, nn.Conv2d):
+            W = W.flatten(1)
+        if isinstance(self.layer, transformers.Conv1D):
+            W = W.t()
+        W = W.float()
+
+        if not self.high_quantizer.ready():
+            self.high_quantizer.calibrate(W, weight=True)
+
+        tick = time.time()
+
+        H = self.H
+        del self.H
+        dead = torch.diag(H) == 0
+        H[dead, dead] = 1
+        W[:, dead] = 0
+
+        Losses = torch.zeros(self.rows, device=self.dev)
+
+        damp = percdamp * torch.mean(torch.diag(H))
+        diag = torch.arange(self.columns, device=self.dev)
+        H[diag, diag] += damp
+        H = torch.linalg.cholesky(H)
+        H = torch.cholesky_inverse(H)
+        H = torch.linalg.cholesky(H, upper=True)
+        Hinv = H
+        
+        # mask = None
+        # mask = torch.zeros_like(W, dtype=torch.bool)
+        # for groupi in range(self.low_quantizer.n_groups):
+        #     st = groupi * self.low_quantizer.groupsize
+        #     ed = min(st + self.low_quantizer.groupsize, self.columns)
+        #     if self.salient_metric == "magnitude":
+        #         saliency = torch.abs(W[:, st:ed])
+        #         thresh = torch.sort(saliency.flatten())[0][
+        #             int(saliency.numel() * low_frac)
+        #         ]
+        #         mask[:, st:ed] = saliency <= thresh
+        #     elif self.salient_metric == "hessian":
+        #         tmp = (
+        #             W[:, st:ed] ** 2
+        #             / (torch.diag(H[st:ed, st:ed]).reshape((1, -1))) ** 2
+        #         )
+        #         thresh = torch.sort(tmp.flatten())[0][int(tmp.numel() * low_frac)]
+        #         mask[:, st:ed] = tmp <= thresh
+        #     else:
+        #         raise NotImplementedError
+        #     assert self.low_quantizer.groupsize % blocksize == 0
+        #     self.low_quantizer.calibrate(
+        #         W[:, st:ed] * mask[:, st:ed], mask[:, st:ed], groupi=groupi
+        #     )
+
+        for blocki, col_st in enumerate(range(0, self.columns, blocksize)):
+            col_ed = min(col_st + blocksize, self.columns)
+            n_cols = col_ed - col_st
+            
+            st = col_st
+            ed = col_ed
+            mask = (
+                torch.zeros_like(W[:, st:ed], dtype=torch.bool)
+                .unsqueeze(0)
+                .repeat_interleave(partition, dim=0)
+            )
+            mask1, mask2, mask3 = structural_guassian_distribution(
+                W[:, st:ed], H[st:ed, st:ed], self.salient_metric, 50
+            )
+            mask[0] = mask1
+            mask[1] = mask2
+            mask[2] = mask3
+
+            assert self.low_quantizer.groupsize % blocksize == 0
+            
+            if self.disable_gptq:
+                # RTN
+                w = W[:, col_st:col_ed]
+
+                # from low to high group
+                q_part_groups_low = []
+                q_part_groups_high = []
+                for i in range(mask.shape[0]):
+                    q_part_groups_low.append(
+                        self.low_quantizer.quantize(w, mask[i], order=orders[i])
+                    )
+                    q_part_groups_high.append(
+                        self.high_quantizer.quantize(w, ~mask[i])
+                    )
+
+                q = torch.zeros_like(w)
+                for j in range(mask.shape[0]):
+                    q += q_part_groups_low[j][:] * mask[j, :]
+                    q += q_part_groups_high[j][:] * (~mask[j, :])
+                W[:, col_st:col_ed] = q
+            else:
+                # shape of W1: [oc, n_cols]
+                W1 = W[:, col_st:col_ed].clone()
+                Q1 = torch.zeros_like(W1)
+                Err1 = torch.zeros_like(W1)
+                Losses1 = torch.zeros_like(W1)
+                Hinv1 = Hinv[col_st:col_ed, col_st:col_ed]
+
+                q_part_groups_low = []
+                q_part_groups_high = []
+
+                for i in range(mask.shape[0]):
+                    q_part_groups_low.append(
+                        self.low_quantizer.quantize(W1, mask[i], order=orders[i])
+                    )
+                    q_part_groups_high.append(
+                        self.high_quantizer.quantize(W1, ~mask[i])
+                    )
+
+                for i in range(n_cols):
+                    # shape of w: [oc, 1]
+                    w = W1[:, i]
+                    d = Hinv1[i, i]
+
+                    q = torch.zeros_like(w)
+                    for j in range(mask.shape[0]):
+                        q += q_part_groups_low[j][:, i] * mask[j, :, i]
+                        q += q_part_groups_high[j][:, i] * (~mask[j, :, i])
+
+                    Q1[:, i] = q
+                    Losses1[:, i] = (w - q) ** 2 / d**2
+
+                    err1 = (w - q) / d
+                    W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
+                    Err1[:, i] = err1
+
+                W[:, col_st:col_ed] = Q1
+                Losses += torch.sum(Losses1, 1) / 2
+
+                W[:, col_ed:] -= Err1.matmul(Hinv[col_st:col_ed, col_ed:])
+
+        torch.cuda.synchronize()
+        print("time %.2f" % (time.time() - tick))
+        print("error", torch.sum(Losses).item())
+
+        if isinstance(self.layer, transformers.Conv1D):
+            W = W.t()
+        self.layer.weight.data = W.reshape(self.layer.weight.shape).to(
+            self.layer.weight.data.dtype
+        )
         return {"error": torch.sum(Losses).item()}
 
     def free(self):

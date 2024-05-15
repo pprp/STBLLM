@@ -18,9 +18,9 @@ def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30)
     optimal_split, mask3 = structural_searching(target_weights, up_lim)
     mask1, mask2 = generate_structural_mask(target_weights, mask3, optimal_split)
 
-    print(
-        mask1.sum() / mask1.numel(),
-        mask2.sum() / mask2.numel(),
-        mask3.sum() / mask3.numel(),
-    )
+    # print(
+    #     mask1.sum() / mask1.numel(),
+    #     mask2.sum() / mask2.numel(),
+    #     mask3.sum() / mask3.numel(),
+    # )
     return mask1, mask2, mask3

@@ -3,41 +3,7 @@ import torch
 import torch.nn as nn
 import math
 import torch.nn.functional as F
-
-index = 0
-
-
-@torch.no_grad()
-def _high_order_residual(x, mask, order=2):
-    sum_order = torch.zeros_like(x)
-    new_matrix = x.clone()
-    new_matrix = new_matrix * mask
-    global index
-    index += 1
-    for od in range(order):
-        residual = new_matrix - sum_order
-        masked_x_tensor = torch.where(mask, residual, torch.tensor(float("nan")))
-
-        mean_tensor_all = torch.nanmean(masked_x_tensor, dim=1)
-        mean_tensor_all = torch.where(
-            torch.isnan(mean_tensor_all),
-            torch.zeros_like(mean_tensor_all),
-            mean_tensor_all,
-        )
-        masked_x_tensor -= mean_tensor_all[:, None]
-        scale_tensor_all = torch.nanmean(torch.abs(masked_x_tensor), dim=1)
-        scale_tensor_all = torch.where(
-            torch.isnan(scale_tensor_all),
-            torch.zeros_like(scale_tensor_all),
-            scale_tensor_all,
-        )
-
-        binary = torch.sign(masked_x_tensor)
-        binary *= scale_tensor_all[:, None]
-        binary += mean_tensor_all[:, None]
-        sum_order = sum_order + binary * mask
-
-    return sum_order, scale_tensor_all
+from utils.binary import normal_quantize, high_order_residual
 
 
 def gptq_quantize(x, scale, zero, maxq):
@@ -412,71 +378,19 @@ class LowQuantizer(nn.Module):
         self.register_buffer("scale", torch.zeros(self.n_groups, oc, 1))
         self.register_buffer("mean", torch.zeros(self.n_groups, oc, 1))
         self.method = method
+        
+        # temporary fix
+        self.braq_w = None 
 
-    def calibrate(self, w, mask=None, groupi=0, order=2):
+    def quantize(self, w, mask, order=2, groupi=0):
         if self.method == "xnor":
-            # TODO: seems to have problem
-            w_mean = w.mean(-1).view(-1, 1)  # oc, ic(blocksize)
-            self.mean[groupi] = w_mean
-            w = w - w_mean  # oc, ic(blocksize)
-            # non_zero_nums = (w != 0).float().sum(-1,keepdim=True)
-            # scale = w.abs().sum(-1,keepdim=True)/(non_zero_nums+1e-5)
-            scale = w.abs().mean(-1, keepdim=True)
-            # TODO: search mean and scale
-        elif self.method == "sign":
-            # w_relu=F.relu(w)
-            # scale=w_relu.sum()/((w>0).float().sum()+1e-5)
-            scale = F.relu(w).mean(-1, keepdim=True)
-            # scale=w.abs().mean(-1,keepdim=True)
-            # scale=w.mean(-1,keepdim=True)
-        elif self.method == "braq":  # The method used in paper
-            w, scale = _high_order_residual(w, mask, order=order)
-            scale = scale.view(-1, 1)
-        elif self.method == "rtn":
-            scale = w.abs().mean(-1, keepdim=True) + 1e-5
-        elif self.method in ["no", "prune"]:
-            return
-        elif self.method in ["2bit", "4bit"]:
-            w = w
-            dev = w.device
-            if self.method == "2bit":
-                self.maxq.fill_(3)
-            elif self.method == "4bit":
-                self.maxq.fill_(7)
-            self.maxq = self.maxq.to(dev)
-            self.scale = self.scale.to(dev)
-            self.zero = self.zero.to(dev)
-            w = w.flatten(1)
-            tmp = torch.zeros(w.shape[0], device=dev)
-            xmin = torch.minimum(w.min(1)[0], tmp)
-            xmax = torch.maximum(w.max(1)[0], tmp)
-
-            tmp = (xmin == 0) & (xmax == 0)
-            xmin[tmp] = -1
-            xmax[tmp] = +1
-
-            scale = (xmax - xmin) / self.maxq
-            scale = scale.reshape(-1, 1)
-            self.zero[groupi] = torch.round(-xmin / scale[groupi]).reshape(-1, 1)
-        else:
-            raise NotImplementedError(f"method {self.method} not implemented")
-        self.scale[groupi] = scale
-        self.scale.to(w.device)
-
-    def quantize(self, w, groupi=0):
-        if w.device != self.scale.device:
-            self.scale = self.scale.to(w.device)
-            self.mean = self.mean.to(w.device)
-
-        if self.method == "xnor":
-            # return torch.zeros_like(w)
             w_mean = self.mean[groupi]
             w = w - w_mean  # oc, ic
             w = w.sign()
-            # TODO remove to
             w = w * self.scale[groupi]
             w += w_mean
-
+        elif self.method == "braq":  # The method used in paper
+            w = high_order_residual(w, mask, order=order)
         elif self.method == "sign":
             w = (w > 0).float()
             w *= self.scale[groupi]
@@ -485,10 +399,57 @@ class LowQuantizer(nn.Module):
             w_int = (w / self.scale[groupi]).round().clamp(0, 1)
             w = w_int * self.scale[groupi]
         elif self.method in ["2bit", "4bit"]:
-            q = torch.clamp(
-                torch.round(w / self.scale[groupi]) + self.zero[groupi], 0, self.maxq
-            )
-            w = self.scale[groupi] * (q - self.zero[groupi])
+
+            bits = int(self.method[0])
+            perchannel = True
+            weight = True
+            dev = w.device
+            maxq = torch.tensor(2**bits - 1)
+            scale = torch.zeros(1)
+            zero = torch.zeros(1)
+
+            if dev != scale.device:
+                scale = scale.to(dev)
+                zero = zero.to(dev)
+                maxq = maxq.to(dev)
+
+            x = w.clone()
+            shape = x.shape
+
+            if perchannel:
+                if weight:
+                    x = x.flatten(1)
+                else:
+                    if len(shape) == 4:
+                        x = x.permute([1, 0, 2, 3])
+                        x = x.flatten(1)
+                    if len(shape) == 3:
+                        x = x.reshape((-1, shape[-1])).t()
+                    if len(shape) == 2:
+                        x = x.t()
+            else:
+                x = x.flatten().unsqueeze(0)
+            tmp = torch.zeros(x.shape[0], device=dev)
+            xmin = torch.minimum(x.min(1)[0], tmp)
+            xmax = torch.maximum(x.max(1)[0], tmp)
+
+            tmp = (xmin == 0) & (xmax == 0)
+            xmin[tmp] = -1
+            xmax[tmp] = +1
+            scale = (xmax - xmin) / maxq
+            zero = torch.round(-xmin / scale)
+            if not perchannel:
+                if weight:
+                    tmp = shape[0]
+                else:
+                    tmp = shape[1] if len(shape) != 3 else shape[2]
+                scale = scale.repeat(tmp)
+                zero = zero.repeat(tmp)
+            if weight:
+                shape = [-1] + [1] * (len(shape) - 1)
+                scale = scale.reshape(shape)
+                zero = zero.reshape(shape)
+            w = normal_quantize(w, scale, zero, maxq)
         elif self.method == "prune":
             return torch.zeros_like(w)
         return w
