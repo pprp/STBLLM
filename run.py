@@ -388,7 +388,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "low_quant_method",
         type=str,
-        choices=["xnor", "sign", "no", "2bit", "4bit", "prune", "braq"],
+        choices=["xnor", "sign", "no", "2bit", "4bit", "prune", "braq", "ternary"],
         help="quantization method; `xnor` is the method using XNOR to adapt hardware calculation; `prune` is the method used in sparseGPTQ; braq is the method used in BiLLM",
     )
     parser.add_argument("--load_quantized", action="store_true")
@@ -627,7 +627,7 @@ if __name__ == "__main__":
 
         print("quantizing ...")
         tick = time.time()
-        model = quant_sequential_pbllm(model, dataloader, device)
+        model = quant_sequential_braqgptq(model, dataloader, device)
         print("quantization time:", time.time() - tick, "s")
 
     for dataset in ["wikitext2"]:

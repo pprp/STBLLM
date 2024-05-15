@@ -131,4 +131,7 @@ class Binarization(nn.Module):
             w = normal_quantize(w, scale, zero, maxq)
         elif self.method == "prune":
             return torch.zeros_like(w)
+        elif self.method == "ternary":
+            threshold = 0.7 * torch.mean(torch.abs(w))
+            w = torch.sign(w) * (torch.abs(w) > threshold).float()
         return w
