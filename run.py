@@ -342,7 +342,7 @@ def quant_sequential_pbllm(model, dataloader, dev):
         for name in wrapped_layers:
             print(i, name)
             print("Quantizing ...")
-            info = wrapped_layers[name].lowhightquant_v2(
+            info = wrapped_layers[name].lowhightquant(
                 args.low_frac, percdamp=args.percdamp, blocksize=args.groupsize
             )
             wrapped_layers[name].free()

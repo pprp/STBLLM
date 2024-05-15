@@ -357,9 +357,9 @@ class WrappedGPT:
             else:
                 raise NotImplementedError
             assert self.low_quantizer.groupsize % blocksize == 0
-            # self.low_quantizer.calibrate(
-            #     W[:, st:ed] * mask[:, st:ed], mask[:, st:ed], groupi=groupi
-            # )
+            self.low_quantizer.calibrate(
+                W[:, st:ed] * mask[:, st:ed], mask[:, st:ed], groupi=groupi
+            )
             # self.low_quantizer.calibrate(W[:,st:ed],mask[:,st:ed],groupi=groupi)
 
         for blocki, col_st in enumerate(range(0, self.columns, blocksize)):
