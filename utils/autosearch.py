@@ -171,9 +171,6 @@ def structural_searching(origin_matrix, up_lim=30):
         )
         mask4[:, top_braq_2_columns[:i]] = True
         group4 = high_order_residual(origin_matrix, mask4, order=2)
-
-        # search_matrix = origin_matrix * (~mask4)
-        # torch.ones_like(search_matrix).bool()
         
         group1_2_3 = high_order_residual(origin_matrix, ~mask4 , order=2)
         quantize_error_0 = error_computing(origin_matrix, group1_2_3 + group4)
@@ -188,6 +185,7 @@ def structural_searching(origin_matrix, up_lim=30):
         origin_matrix.device
     )
     mask4[:, top_braq_2_columns] = True
+    
     group4 = high_order_residual(origin_matrix, mask4, order=2)
 
     search_matrix = origin_matrix * (~mask4)

@@ -2,16 +2,31 @@ import torch
 from utils.autosearch import structural_searching
 from utils.mask import generate_structural_mask
 
+def fun1_standardize(M):
+    # M can be weight or activation or gradient
+    M_mean = M.mean(dim=0, keepdim=True).mean(dim=1, keepdim=True)
+    M = M - M_mean
+    std = M.view(M.size(0), -1).std(dim=1).view(-1, 1) + 1e-5
+    M = M / std.expand_as(M)
+    return M
+
+
 """
 Used to generate masks for minor structural 2-bit salient data and split major 1-bit normal data according to different metric.
 """
 
 
-# def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30):
+# def structural_guassian_distribution(tmp, H=None, X=None, metric="magnitude", up_lim=30):
 #     if metric == "hessian":
 #         target_weights = tmp**2 / (torch.diag(H).reshape((1, -1))) ** 2
 #     elif metric == "magnitude":
 #         target_weights = tmp
+#     elif metric == "ria":
+#         target_weights = (
+#                 torch.abs(tmp) / torch.sum(torch.abs(tmp), dim=0)
+#                 + torch.abs(tmp) / torch.sum(torch.abs(tmp), dim=1).reshape(-1, 1)
+#             ) * (torch.sqrt(X)) ** 0.5
+#         target_weights = fun1_standardize(target_weights)
 #     else:
 #         raise NotImplementedError
 
@@ -26,11 +41,17 @@ Used to generate masks for minor structural 2-bit salient data and split major 1
 #     return mask1, mask2, mask3
 
 
-def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30):
+def structural_guassian_distribution(tmp, H=None, X=None, metric="magnitude", up_lim=30):
     if metric == "hessian":
         target_weights = tmp**2 / (torch.diag(H).reshape((1, -1))) ** 2
     elif metric == "magnitude":
         target_weights = tmp
+    elif metric == "ria":
+        target_weights = (
+                torch.abs(tmp) / torch.sum(torch.abs(tmp), dim=0)
+                + torch.abs(tmp) / torch.sum(torch.abs(tmp), dim=1).reshape(-1, 1)
+            ) * (torch.sqrt(X)) ** 0.5
+        target_weights = fun1_standardize(target_weights)
     else:
         raise NotImplementedError
 
