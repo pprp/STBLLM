@@ -34,6 +34,10 @@ class BRAGPTQ:
         self.braq_quantizer = braq_quantizer
         self.salient_metric = salient_metric  # "magnitude" or "hessian"
         self.disable_gptq = disable_gptq
+        
+        # ADD 
+        # activation
+        self.scaler_row = torch.zeros((self.columns), device=self.dev)
 
     def add_batch(self, inp, out, blocksize=1024):
         if DEBUG:
@@ -48,10 +52,17 @@ class BRAGPTQ:
             if len(inp.shape) == 3:
                 inp = inp.reshape((-1, inp.shape[-1]))
             inp = inp.t()
+        
+        # ADD
+        self.scaler_row *= self.nsamples / (self.nsamples + tmp)    
+        
         self.H *= self.nsamples / (self.nsamples + tmp)
         self.nsamples += tmp
         inp = math.sqrt(2 / self.nsamples) * inp.float()
         self.H += inp.matmul(inp.t())
+        
+        # ADD
+        self.scaler_row += torch.norm(inp, p=2, dim=1) ** 2 / self.nsamples
 
 
     def fasterquant(
@@ -59,9 +70,11 @@ class BRAGPTQ:
         blocksize=128,
         percdamp=0.01,
         partition=4,
-        orders=(1, 1, 2, 2),
+        orders=(1, 1, 1, 2),
     ):
         W = self.layer.weight.data.clone()
+        X = self.scaler_row.reshape((1, -1))
+        
         if isinstance(self.layer, nn.Conv2d):
             W = W.flatten(1)
         if isinstance(self.layer, transformers.Conv1D):
@@ -97,7 +110,7 @@ class BRAGPTQ:
                 .repeat_interleave(partition, dim=0)
             )
             mask1, mask2, mask3, mask4 = structural_guassian_distribution(
-                W[:, st:ed], H[st:ed, st:ed], self.salient_metric, 50
+                W[:, st:ed], H[st:ed, st:ed], X[:, st:ed], self.salient_metric, 50
             )
             mask[0] = mask1
             mask[1] = mask2
