@@ -172,8 +172,10 @@ def structural_searching(origin_matrix, up_lim=30):
         mask4[:, top_braq_2_columns[:i]] = True
         group4 = high_order_residual(origin_matrix, mask4, order=2)
 
-        search_matrix = origin_matrix * (~mask4)
-        group1_2_3 = high_order_residual(search_matrix, torch.ones_like(search_matrix).bool(), order=2)
+        # search_matrix = origin_matrix * (~mask4)
+        # torch.ones_like(search_matrix).bool()
+        
+        group1_2_3 = high_order_residual(origin_matrix, ~mask4 , order=2)
         quantize_error_0 = error_computing(origin_matrix, group1_2_3 + group4)
         error.append(quantize_error_0.item())
         lines.append(i)
@@ -186,6 +188,7 @@ def structural_searching(origin_matrix, up_lim=30):
         origin_matrix.device
     )
     mask4[:, top_braq_2_columns] = True
+    group4 = high_order_residual(origin_matrix, mask4, order=2)
 
     search_matrix = origin_matrix * (~mask4)
 
@@ -204,14 +207,14 @@ def structural_searching(origin_matrix, up_lim=30):
     for split_value_1 in percentile_values:
         split_value_2 = 2 * split_value_1
         if split_value_2 > percentile_values[-1]:
+            # To prevent out of range
             continue
             
         mask1, mask2, mask3 = generate_structural_mask(search_matrix, mask4, split_value_1, split_value_2)
         group1 = high_order_residual(origin_matrix, mask1, order=1)
         group2 = high_order_residual(origin_matrix, mask2, order=1)
         group3 = high_order_residual(origin_matrix, mask3, order=1)
-        group4 = high_order_residual(origin_matrix, mask4, order=2)
-
+       
         quantize_error = error_computing(origin_matrix, group1 + group2 + group3 + group4)
         if quantize_error < minimal_value:
             minimal_value = quantize_error
