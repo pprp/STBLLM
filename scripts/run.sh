@@ -260,20 +260,34 @@
 
 
 # 2bit 49.682358 for tinyllama
-CUDA_VISIBLE_DEVICES=3 python3 run.py /data/lujunli/hf_download/llama-2-7b c4 braq --blocksize 128 \
-    --salient_metric hessian \
-    --sparsity_ratio 0.5 \
-    --sparsity_type 4:8 > ./logs/billm_4mask_salient_braq.log 2>&1 &
+# CUDA_VISIBLE_DEVICES=4 python3 run.py /data/lujunli/hf_download/llama-2-7b c4 braq --blocksize 128 \
+#     --salient_metric hessian \
+#     --prune_method ria_structure \
+#     --reconstruction \
+#     --Lamda 2 \
+#     --Hyper_m 6 \
+#     --sparsity_ratio 0.5 \
+#     --sparsity_type 4:8  > ./logs/billm_4mask_salient_braq_hessian.log 2>&1 &
 
-tail -f ./logs/billm_4mask_salient_braq.log
+# tail -f ./logs/billm_4mask_salient_braq_hessian.log
 
-    # --prune_method ria_structure \
-    # --reconstruction
-    
-    # --Lamda 2 \
-    # --Hyper_m 6 \
+
 #      \
 #     --percdamp 0.01 \
 #     --high_bit 2 > ./logs/ria_structure_reconstruction_billm_braq.log 2>&1 &
 
 # tail -f ./logs/ria_structure_reconstruction_billm_braq.log
+
+
+# search for the best quantization metric; 
+CUDA_VISIBLE_DEVICES=4 python3 run.py /data/lujunli/hf_download/llama-2-7b c4 braq --blocksize 128 \
+    --salient_metric auto \
+    --prune_method ria_structure \
+    --reconstruction \
+    --Lamda 2 \
+    --Hyper_m 6 \
+    --sparsity_ratio 0.5 \
+    --sparsity_type 4:8  
+    # > ./logs/billm_4mask_salient_braq_hessian.log 2>&1 &
+
+# tail -f ./logs/billm_4mask_salient_braq_hessian.log

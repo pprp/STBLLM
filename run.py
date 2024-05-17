@@ -22,6 +22,7 @@ from utils.prune import (
 )
 from utils.layerwrapper import WrappedGPT
 from utils.quant import GPTQQuantizer, LowQuantizer, HighQuantizer
+from utils.autometric import MetricEngine
 
 
 # from autozc.structures.tree_engine import GPTree
@@ -64,6 +65,10 @@ The function is employed to calibrate and quantize models layer by layer.
 @torch.no_grad()
 def quant_sequential_braqgptq(model, dataloader, dev):
     print("Starting ...")
+    
+    engine = MetricEngine()
+    graph_string = engine.generate_random_graph()
+    print(f"Current graph: {graph_string}")
 
     for name, module in model.named_modules():
         module.global_name = args.model + name
@@ -163,6 +168,7 @@ def quant_sequential_braqgptq(model, dataloader, dev):
                 braq_quantizer,
                 salient_metric=args.salient_metric,
                 disable_gptq=args.disable_gptq,
+                engine=engine, 
             )
 
         def add_batch(name):
@@ -421,7 +427,7 @@ if __name__ == "__main__":
         "--salient_metric",
         type=str,
         default="magnitude",
-        choices=["magnitude", "hessian"],
+        choices=["magnitude", "hessian", "ria", "auto"],
     )
     parser.add_argument(
         "--disable_gptq",
