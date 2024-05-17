@@ -66,9 +66,12 @@ The function is employed to calibrate and quantize models layer by layer.
 def quant_sequential_braqgptq(model, dataloader, dev):
     print("Starting ...")
     
-    engine = MetricEngine()
-    graph_string = engine.generate_random_graph()
-    print(f"Current graph: {graph_string}")
+    if args.salient_metric == "auto":
+        engine = MetricEngine()
+        graph_string = engine.generate_random_graph()
+        print(f"Current graph: {graph_string}")
+    else:
+        engine = None 
 
     for name, module in model.named_modules():
         module.global_name = args.model + name

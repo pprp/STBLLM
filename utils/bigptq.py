@@ -112,10 +112,10 @@ class BRAGPTQ:
         self,
         blocksize=128,
         percdamp=0.01,
-        # partition=4,
-        # orders=(1, 1, 1, 2),
-        partition=3,
-        orders=(1, 1, 2),
+        partition=4,
+        orders=(1, 1, 1, 2),
+        # partition=3,
+        # orders=(1, 1, 2),
     ):
         W = self.layer.weight.data.clone()
         # X = self.scaler_row.reshape((1, -1))
@@ -168,20 +168,20 @@ class BRAGPTQ:
             
             sub_x_dict = {k: v[:, st:ed] for k, v in X_dict.items()}
             
-            # mask1, mask2, mask3, mask4 = structural_guassian_distribution(
-            #     W[:, st:ed], H[st:ed, st:ed], sub_x_dict, self.salient_metric, 50
-            # )
-            # mask[0] = mask1
-            # mask[1] = mask2
-            # mask[2] = mask3
-            # mask[3] = mask4 
-            
-            mask1, mask2, mask3 = structural_guassian_distribution(
-                W[:, st:ed], H[st:ed, st:ed], sub_x_dict, self.salient_metric, 50, self.engine
+            mask1, mask2, mask3, mask4 = structural_guassian_distribution(
+                W[:, st:ed], H[st:ed, st:ed], sub_x_dict, self.salient_metric, 50
             )
             mask[0] = mask1
             mask[1] = mask2
             mask[2] = mask3
+            mask[3] = mask4 
+            
+            # mask1, mask2, mask3 = structural_guassian_distribution(
+            #     W[:, st:ed], H[st:ed, st:ed], sub_x_dict, self.salient_metric, 50, self.engine
+            # )
+            # mask[0] = mask1
+            # mask[1] = mask2
+            # mask[2] = mask3
             
 
             assert self.braq_quantizer.groupsize % blocksize == 0
