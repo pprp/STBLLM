@@ -590,49 +590,49 @@ if __name__ == "__main__":
             seqlen=model.seqlen,
         )
 
-        # # prune after quant
-        # start_time = time.time()
-        # if args.sparsity_ratio != 0:
-        #     print("pruning starts")
-        #     if args.prune_method == "wanda":
-        #         prune_wanda(
-        #             args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
-        #         )
-        #     elif args.prune_method == "magnitude":
-        #         prune_magnitude(
-        #             args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
-        #         )
-        #     elif args.prune_method == "sparsegpt":
-        #         prune_sparsegpt(
-        #             args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
-        #         )
-        #     elif "ablate" in args.prune_method:
-        #         prune_ablate(
-        #             args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
-        #         )
-        #     elif "ria" == args.prune_method:
-        #         prune_ria(
-        #             args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
-        #         )
-        #     elif "ri" == args.prune_method:
-        #         prune_ri(
-        #             args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
-        #         )
-        #     elif "gblm" in args.prune_method:
-        #         prune_gblm(
-        #             args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
-        #         )
-        #     elif "ria_structure" in args.prune_method:
-        #         prune_ria_outlier_structure_special(
-        #             args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
-        #         )
-        #     # elif "pruner-zero" in args.prune_method:
-        #     #     engine = GPTree.load_tree('./data/best_tree.json')
-        #     #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
-        #     else:
-        #         raise NotImplementedError
-        # end_time = time.time()
-        # print("pruning time: ", end_time - start_time)
+        # prune after quant
+        start_time = time.time()
+        if args.sparsity_ratio != 0:
+            print("pruning starts")
+            if args.prune_method == "wanda":
+                prune_wanda(
+                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+                )
+            elif args.prune_method == "magnitude":
+                prune_magnitude(
+                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+                )
+            elif args.prune_method == "sparsegpt":
+                prune_sparsegpt(
+                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+                )
+            elif "ablate" in args.prune_method:
+                prune_ablate(
+                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+                )
+            elif "ria" == args.prune_method:
+                prune_ria(
+                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+                )
+            elif "ri" == args.prune_method:
+                prune_ri(
+                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+                )
+            elif "gblm" in args.prune_method:
+                prune_gblm(
+                    args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
+                )
+            elif "ria_structure" in args.prune_method:
+                prune_ria_outlier_structure_special(
+                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
+                )
+            # elif "pruner-zero" in args.prune_method:
+            #     engine = GPTree.load_tree('./data/best_tree.json')
+            #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
+            else:
+                raise NotImplementedError
+        end_time = time.time()
+        print("pruning time: ", end_time - start_time)
 
         print("Begin quantizing ...")
         tick = time.time()

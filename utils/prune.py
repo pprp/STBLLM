@@ -232,7 +232,7 @@ def prune_wanda(
 
         wrapped_layers = {}
         for name in subset:
-            wrapped_layers[name] = WrappedGPT(subset[name])
+            wrapped_layers[name] = WrappedGPT(args, subset[name], layer_name=name)
 
         def add_batch(name):
             def tmp(_, inp, out):
@@ -1000,9 +1000,9 @@ def prune_ria_outlier_structure_special(
             print(f"pruning layer {i} name {name}")
             W = subset[name].weight.data.clone()
             # NOTE: WANDA
-            W_metric = torch.abs(subset[name].weight.data) * torch.sqrt(
-                wrapped_layers[name].scaler_row.reshape((1, -1))
-            )
+            # W_metric = torch.abs(subset[name].weight.data) * torch.sqrt(
+            #     wrapped_layers[name].scaler_row.reshape((1, -1))
+            # )
 
             # NOTE: RIA
             W_metric = (
