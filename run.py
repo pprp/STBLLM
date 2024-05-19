@@ -489,7 +489,8 @@ if __name__ == "__main__":
         ],
     )
     parser.add_argument(
-        "--sparsity_type", type=str, choices=["unstructured", "4:8", "2:4"]
+        "--sparsity_type", type=str, choices=["unstructured", "4:8", "2:4", "5:8", "6:8", "7:8",
+                                              "1:8", "0:8", "2:8", "3:8"]
     )
     parser.add_argument(
         "--sparsity_ratio", type=float, default=0, help="Sparsity level"
@@ -569,11 +570,11 @@ if __name__ == "__main__":
 
     # Handling n:m sparsity
     prune_n, prune_m = 0, 0
-    if args.sparsity_type != "unstructured":
-        assert (
-            args.sparsity_ratio == 0.5
-        ), "sparsity ratio must be 0.5 for structured N:M sparsity"
-        prune_n, prune_m = map(int, args.sparsity_type.split(":"))
+    # if args.sparsity_type != "unstructured":
+        # assert (
+        #     args.sparsity_ratio == 0.5
+        # ), "sparsity ratio must be 0.5 for structured N:M sparsity"
+    prune_n, prune_m = map(int, args.sparsity_type.split(":"))
 
     if args.load_quantized:
         model = get_model(save_file)
