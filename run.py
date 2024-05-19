@@ -66,6 +66,9 @@ The function is employed to calibrate and quantize models layer by layer.
 def quant_sequential_braqgptq(model, dataloader, dev):
     print("Starting ...")
     
+    if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
+        dev = model.hf_device_map["model.embed_tokens"]
+    
     if args.salient_metric == "auto":
         engine = MetricEngine()
         graph_string = engine.generate_random_graph()
@@ -79,6 +82,7 @@ def quant_sequential_braqgptq(model, dataloader, dev):
     use_cache = model.config.use_cache
     model.config.use_cache = False
 
+    model = model.to(dev)
     if "opt" in args.model:
         layers = model.model.decoder.layers
         model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(dev)
@@ -151,9 +155,14 @@ def quant_sequential_braqgptq(model, dataloader, dev):
     print("Ready.")
 
     for i in range(len(layers)):
+        
+        if f"model.layers.{i}" in model.hf_device_map:   ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
+            dev = model.hf_device_map[f"model.layers.{i}"]
+            inps, outs, attention_mask = inps.to(dev), outs.to(dev), attention_mask.to(dev)
+        
         layer = layers[i].to(dev)
-
         subset = find_layers(layer)
+        
 
         gptq = {}
         for name in subset:
@@ -186,6 +195,7 @@ def quant_sequential_braqgptq(model, dataloader, dev):
 
         for j in range(args.nsamples):
             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
+            
         for h in handles:
             h.remove()
 
