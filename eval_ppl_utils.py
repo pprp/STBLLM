@@ -2,14 +2,20 @@ import time
 
 import torch
 import torch.nn as nn
-
+import fnmatch
+from datautils import TokenizerWrapper
 
 @torch.no_grad()
 def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     print("Evaluating ...")
 
-    testenc = testenc.to(dev)
-    testenc = testenc.input_ids
+    if not isinstance(testenc, TokenizerWrapper):
+        testenc = testenc.to(dev)
+    
+    if type(testenc) == torch.Tensor:
+        testenc = testenc
+    else:
+        testenc = testenc.input_ids
     nsamples = testenc.numel() // model.seqlen
 
     use_cache = model.config.use_cache
@@ -198,3 +204,39 @@ def opt_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     print({f"{dataset}/perplexity": ppl.item()})
 
     model.config.use_cache = use_cache
+
+
+def eval_zero_shot(model_name, model, tokenizer, task_list=["boolq","rte","hellaswag","winogrande","arc_challenge","arc_easy","openbookqa"], 
+        num_fewshot=0, use_accelerate=False, add_special_tokens=False):
+    from lm_eval import tasks, evaluator 
+    def pattern_match(patterns, source_list):
+        task_names = set()
+        for pattern in patterns:
+            for matching in fnmatch.filter(source_list, pattern):
+                task_names.add(matching)
+        return list(task_names)
+    task_names = pattern_match(task_list, tasks.ALL_TASKS)
+    model_args = f"pretrained={model_name},cache_dir=./llm_weights"
+    limit = None 
+    if "70b" in model_name or "65b" in model_name:
+        limit = 2000
+    if use_accelerate:
+        model_args = f"pretrained={model_name},cache_dir=./llm_weights,use_accelerate=True"
+    results = evaluator.simple_evaluate(
+        model="hf-causal-experimental",
+        model_args=model_args,
+        tasks=task_names,
+        num_fewshot=num_fewshot,
+        batch_size=None,
+        device=None,
+        no_cache=True,
+        limit=limit,
+        description_dict={},
+        decontamination_ngrams_path=None,
+        check_integrity=False,
+        pretrained_model=model,
+        tokenizer=tokenizer, 
+        add_special_tokens=add_special_tokens
+    )
+
+    return results 

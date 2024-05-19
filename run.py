@@ -82,7 +82,7 @@ def quant_sequential_braqgptq(model, dataloader, dev):
     use_cache = model.config.use_cache
     model.config.use_cache = False
 
-    model = model.to(dev)
+    # model = model.to(dev)
     if "opt" in args.model:
         layers = model.model.decoder.layers
         model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(dev)
@@ -559,6 +559,12 @@ if __name__ == "__main__":
         action="store_true",
         help="static groups",
     )
+    
+    parser.add_argument(
+        "--eval_zero_shot",
+        action="store_true",
+        help="eval zero shot",
+    )
 
     parser.add_argument("--low_frac", type=float, default=0.95, help="Target low_frac")
 
@@ -650,8 +656,21 @@ if __name__ == "__main__":
         model = quant_sequential_braqgptq(model, dataloader, device)
         print("quantization time:", time.time() - tick, "s")
 
-    for dataset in ["wikitext2"]:
-        # , "ptb", "c4"]:
+    if args.eval_zero_shot:
+        from eval_ppl_utils import eval_zero_shot
+        accelerate=False
+        if "30b" in args.model or "65b" in args.model or "70b" in args.model:
+            accelerate=True
+
+        task_list = ["boolq", "rte","hellaswag","winogrande", "arc_easy","arc_challenge", "openbookqa"]
+        num_shot = 0
+        results = eval_zero_shot(args.model, model, tokenizer, task_list, num_shot, accelerate)
+        print("********************************")
+        print("zero_shot evaluation results")
+        print(results)
+
+
+    for dataset in ["wikitext2", "c4", "ptb"]:
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, seqlen=model.seqlen, model=args.model
         )

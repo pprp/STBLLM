@@ -8,3 +8,4 @@ Skywork/*
 TinyLlama/*
 *.log
 gradients/*
+lm-evaluation-harness/*
