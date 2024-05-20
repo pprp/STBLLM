@@ -9,6 +9,9 @@ from datautils import TokenizerWrapper
 def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     print("Evaluating ...")
 
+    if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
+        dev = model.hf_device_map["model.embed_tokens"]
+
     if not isinstance(testenc, TokenizerWrapper):
         testenc = testenc.to(dev)
     
@@ -46,7 +49,7 @@ def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     for i in range(nsamples):
         batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(dev)
         try:
-            model(batch)
+            model(batch.to(dev))
         except ValueError:
             pass
     layers[0] = layers[0].module
@@ -64,7 +67,7 @@ def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
 
         if (
             f"model.layers.{i}" in model.hf_device_map
-        ):  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
+        ):  
             dev = model.hf_device_map[f"model.layers.{i}"]
             inps, outs, attention_mask = (
                 inps.to(dev),

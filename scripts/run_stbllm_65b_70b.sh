@@ -12,8 +12,8 @@ else
 fi
 
 MODEL_NAME_LIST=(
-    "llama-1-65b"
-    # "llama-2-70b"
+    # "llama-1-65b"
+    "llama-2-70b"
 )
 
 SPARSITY_RATIO_LIST=(

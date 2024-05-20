@@ -12,8 +12,8 @@ else
 fi
 
 MODEL_NAME_LIST=(
-    "llama-2-13b"
-    "llama-1-13b"
+    # "llama-2-13b"
+    # "llama-1-13b"
     "llama-1-33b"
 )
 
@@ -50,9 +50,9 @@ while true; do
             echo "GPU $gpu is free or job exited, starting a new experiment"
             
             # Select the model and sparsity configuration based on experiment count
-            MODEL_NAME=${MODEL_NAME_LIST[$((experiment_count / 3))]}
-            SPARSITY_RATIO=${SPARSITY_RATIO_LIST[$((experiment_count % 3))]}
-            SPARSITY_TYPE=${SPARSITY_TYPE_LIST[$((experiment_count % 3))]}
+            MODEL_NAME=${MODEL_NAME_LIST[$((experiment_count / (${#SPARSITY_RATIO_LIST[@]} * ${#SPARSITY_TYPE_LIST[@]})))]}
+            SPARSITY_RATIO=${SPARSITY_RATIO_LIST[$((experiment_count % ${#SPARSITY_RATIO_LIST[@]}))]}
+            SPARSITY_TYPE=${SPARSITY_TYPE_LIST[$((experiment_count % ${#SPARSITY_TYPE_LIST[@]}))]}
             
             echo "Starting experiment $((experiment_count + 1)) on GPU $gpu with Model: $MODEL_NAME, Sparsity ratio: $SPARSITY_RATIO, Sparsity type: $SPARSITY_TYPE"
 
