@@ -2,7 +2,7 @@
 
 # Update baseline from sparsegpt to ria_structure;
 
-LOG_PATH=./logs/stbllm_13b_33b
+LOG_PATH=./logs/stbllm_8b_mistral
 
 if [ ! -d $LOG_PATH ]; then
     mkdir -p $LOG_PATH
@@ -14,23 +14,25 @@ fi
 MODEL_NAME_LIST=(
     # "llama-2-13b"
     # "llama-1-13b"
-    "llama-1-33b"
+    # "llama-1-33b"
+    "llama-3-8b"
+    "mistral-7b"
 )
 
 SPARSITY_RATIO_LIST=(
-    # 0.25
-    # 0.375
+    0.25
+    0.375
     0.5
 )
 
 SPARSITY_TYPE_LIST=(
-    # "2:8"
-    # "3:8"
+    "2:8"
+    "3:8"
     "4:8"
 )
 
 # Define GPU array
-GPUS=(0) # Assuming we have only five GPUs
+GPUS=(7) # Assuming we have only five GPUs
 
 # Initialize experiment counter
 experiment_count=0

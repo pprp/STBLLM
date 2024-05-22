@@ -18,7 +18,7 @@ Generate tokenizer and return it to preload datasets by converting them to embed
 
 
 def get_tokenizer(model):
-    if "llama" in model.lower():
+    if "llama" in model.lower() or "mistral" in model.lower():
         if "3" in model.lower():
             tokenizer = AutoTokenizer.from_pretrained(model, use_fast=False)
         else:  # 2 and 1

@@ -46,7 +46,7 @@ def get_model(model):
         from transformers import OPTForCausalLM
         model = OPTForCausalLM.from_pretrained(model, torch_dtype="auto")
         model.seqlen = model.config.max_position_embeddings
-    elif "llama" in model or "Llama" in model:
+    elif "llama" in model or "Llama" in model or "mistral" in model:
         from transformers import LlamaForCausalLM
 
         model = LlamaForCausalLM.from_pretrained(
@@ -99,7 +99,7 @@ def quant_sequential_braqgptq(model, dataloader, dev):
             and model.model.decoder.project_in
         ):
             model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
-    elif "llama" in args.model:
+    elif "llama" in args.model or "mistral" in args.model:
         layers = model.model.layers
         model.model.embed_tokens = model.model.embed_tokens.to(dev)
         model.model.norm = model.model.norm.to(dev)
@@ -144,7 +144,7 @@ def quant_sequential_braqgptq(model, dataloader, dev):
             and model.model.decoder.project_in
         ):
             model.model.decoder.project_in = model.model.decoder.project_in.cpu()
-    elif "llama" in args.model:
+    elif "llama" in args.model or "mistral" in args.model:
         model.model.embed_tokens = model.model.embed_tokens.cpu()
         model.model.norm = model.model.norm.cpu()
     torch.cuda.empty_cache()
@@ -248,7 +248,7 @@ def quant_sequential_pbllm(model, dataloader, dev):
             and model.model.decoder.project_in
         ):
             model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
-    elif "llama" in args.model:
+    elif "llama" in args.model or "mistral" in args.model:
         layers = model.model.layers
         model.model.embed_tokens = model.model.embed_tokens.to(dev)
         model.model.norm = model.model.norm.to(dev)
@@ -293,7 +293,7 @@ def quant_sequential_pbllm(model, dataloader, dev):
             and model.model.decoder.project_in
         ):
             model.model.decoder.project_in = model.model.decoder.project_in.cpu()
-    elif "llama" in args.model:
+    elif "llama" in args.model or "mistral" in args.model:
         model.model.embed_tokens = model.model.embed_tokens.cpu()
         model.model.norm = model.model.norm.cpu()
     torch.cuda.empty_cache()
@@ -651,10 +651,10 @@ if __name__ == "__main__":
         end_time = time.time()
         print("pruning time: ", end_time - start_time)
 
-        print("Begin quantizing ...")
-        tick = time.time()
-        model = quant_sequential_braqgptq(model, dataloader, device)
-        print("quantization time:", time.time() - tick, "s")
+        # print("Begin quantizing ...")
+        # tick = time.time()
+        # model = quant_sequential_braqgptq(model, dataloader, device)
+        # print("quantization time:", time.time() - tick, "s")
 
     if args.eval_zero_shot:
         from eval_ppl_utils import eval_zero_shot
@@ -679,7 +679,7 @@ if __name__ == "__main__":
             from eval_ppl_utils import opt_eval
 
             opt_eval(model, testloader, device, dataset, args.log_wandb)
-        elif "llama" in args.model or "Llama" in args.model:
+        elif "llama" in args.model or "mistral" in args.model or "Llama" in args.model:
             from eval_ppl_utils import llama_eval
 
             llama_eval(model, testloader, device, dataset, args.log_wandb)

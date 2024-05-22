@@ -712,7 +712,7 @@ def prune_ria(
     )
     print("dataset loading complete")
     with torch.no_grad():
-        if "llama" in args.model:
+        if "llama" in args.model or "mistral" in args.model:
             inps, outs, attention_mask, position_ids = prepare_calibration_input(
                 model, dataloader, device
             )
@@ -720,7 +720,7 @@ def prune_ria(
             inps, outs, attention_mask = prepare_calibration_input(
                 model, dataloader, device
             )
-    if "llama" in args.model:
+    if "llama" in args.model or "mistral" in args.model:
         layers = model.model.layers
     elif "opt" in args.model:
         layers = model.model.decoder.layers
@@ -728,7 +728,7 @@ def prune_ria(
     for i in range(len(layers)):
         layer = layers[i]
         subset = find_layers(layer)
-        if "llama" in args.model:
+        if "llama" in args.model or "mistral" in args.model:
             if (
                 f"model.layers.{i}" in model.hf_device_map
             ):  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
@@ -803,7 +803,7 @@ def prune_ria(
             handles.append(subset[name].register_forward_hook(add_batch(name)))
         for j in range(args.nsamples):
             with torch.no_grad():
-                if "llama" in args.model:
+                if "llama" in args.model or "mistral" in args.model:
                     outs[j] = layer(
                         inps[j].unsqueeze(0),
                         attention_mask=attention_mask,
@@ -901,7 +901,7 @@ def prune_ria(
 
         for j in range(args.nsamples):
             with torch.no_grad():
-                if "llama" in args.model:
+                if "llama" in args.model or "mistral" in args.model:
                     outs[j] = layer(
                         inps[j].unsqueeze(0),
                         attention_mask=attention_mask,
@@ -936,7 +936,7 @@ def prune_ria_outlier_structure_special(
 
     print("dataset loading complete")
     with torch.no_grad():
-        if "llama" in args.model:
+        if "llama" in args.model or "mistral" in args.model:
             inps, outs, attention_mask, position_ids = prepare_calibration_input(
                 model, dataloader, device
             )
@@ -1074,7 +1074,7 @@ def prune_ria_outlier_structure_special(
     )
     print("dataset loading complete")
     with torch.no_grad():
-        if "llama" in args.model:
+        if "llama" in args.model or "mistral" in args.model:
             inps, outs, attention_mask, position_ids = prepare_calibration_input(
                 model, dataloader, device
             )
@@ -1168,7 +1168,7 @@ def prune_ria_outlier_structure_special(
 
         for j in range(args.nsamples):
             with torch.no_grad():
-                if "llama" in args.model:
+                if "llama" in args.model or "mistral" in args.model:
                     outs[j] = layer(
                         inps[j].unsqueeze(0),
                         attention_mask=attention_mask,
