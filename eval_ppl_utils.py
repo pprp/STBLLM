@@ -5,16 +5,17 @@ import torch.nn as nn
 import fnmatch
 from datautils import TokenizerWrapper
 
+
 @torch.no_grad()
 def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     print("Evaluating ...")
 
-    if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
+    if hasattr(model, "hf_device_map") and "model.embed_tokens" in model.hf_device_map:
         dev = model.hf_device_map["model.embed_tokens"]
 
     if not isinstance(testenc, TokenizerWrapper):
         testenc = testenc.to(dev)
-    
+
     if type(testenc) == torch.Tensor:
         testenc = testenc
     else:
@@ -65,9 +66,7 @@ def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
         print(i)
         layer = layers[i]
 
-        if (
-            f"model.layers.{i}" in model.hf_device_map
-        ):  
+        if f"model.layers.{i}" in model.hf_device_map:
             dev = model.hf_device_map[f"model.layers.{i}"]
             inps, outs, attention_mask = (
                 inps.to(dev),
@@ -209,22 +208,41 @@ def opt_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     model.config.use_cache = use_cache
 
 
-def eval_zero_shot(model_name, model, tokenizer, task_list=["boolq","rte","hellaswag","winogrande","arc_challenge","arc_easy","openbookqa"], 
-        num_fewshot=0, use_accelerate=False, add_special_tokens=False):
-    from lm_eval import tasks, evaluator 
+def eval_zero_shot(
+    model_name,
+    model,
+    tokenizer,
+    task_list=[
+        "boolq",
+        "rte",
+        "hellaswag",
+        "winogrande",
+        "arc_challenge",
+        "arc_easy",
+        "openbookqa",
+    ],
+    num_fewshot=0,
+    use_accelerate=False,
+    add_special_tokens=False,
+):
+    from lm_eval import tasks, evaluator
+
     def pattern_match(patterns, source_list):
         task_names = set()
         for pattern in patterns:
             for matching in fnmatch.filter(source_list, pattern):
                 task_names.add(matching)
         return list(task_names)
+
     task_names = pattern_match(task_list, tasks.ALL_TASKS)
     model_args = f"pretrained={model_name},cache_dir=./llm_weights"
-    limit = None 
+    limit = None
     if "70b" in model_name or "65b" in model_name:
         limit = 2000
     if use_accelerate:
-        model_args = f"pretrained={model_name},cache_dir=./llm_weights,use_accelerate=True"
+        model_args = (
+            f"pretrained={model_name},cache_dir=./llm_weights,use_accelerate=True"
+        )
     results = evaluator.simple_evaluate(
         model="hf-causal-experimental",
         model_args=model_args,
@@ -238,8 +256,8 @@ def eval_zero_shot(model_name, model, tokenizer, task_list=["boolq","rte","hella
         decontamination_ngrams_path=None,
         check_integrity=False,
         pretrained_model=model,
-        tokenizer=tokenizer, 
-        add_special_tokens=add_special_tokens
+        tokenizer=tokenizer,
+        add_special_tokens=add_special_tokens,
     )
 
-    return results 
+    return results

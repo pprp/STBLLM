@@ -20,22 +20,18 @@ for filename in os.listdir(folder_path):
             last_line = lines[-1]
             if len(lines) < 200:
                 os.remove(file_path)
-                continue 
-            
-            if last_line.startswith(
-                "UnboundLocalError"
-            ) or last_line.startswith("RuntimeError"):
+                continue
+
+            if last_line.startswith("UnboundLocalError") or last_line.startswith(
+                "RuntimeError"
+            ):
                 # 检查最后一行是否以RuntimeError开头
                 print(f"Filtered out: {filename}")  # 打印出需要过滤掉的文件名
                 # 这里可以添加删除文件的代码，例如：
                 os.remove(file_path)  # 谨慎使用，这将删除文件
                 NUM_FILTERED_FILES += 1
-                
-            
-                
-            if last_line.startswith(
-                "Perplexity"
-            ):  # 检查最后一行是否以特定字符串开头
+
+            if last_line.startswith("Perplexity"):  # 检查最后一行是否以特定字符串开头
                 try:
                     # 提取数字，这里假设数字紧跟在字符串后面，并且是一个浮点数
                     number = float(last_line.split()[-1])
@@ -65,4 +61,3 @@ print(f"Filtered files: {NUM_FILTERED_FILES}")
 print(f"Files remaining: {NUM_TOTAL_FILES - NUM_FILTERED_FILES}")
 
 pprint.pprint(extracted_g2p)
-

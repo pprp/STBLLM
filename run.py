@@ -43,6 +43,7 @@ def get_model(model):
 
     if "opt" in model:
         from transformers import OPTForCausalLM
+
         model = OPTForCausalLM.from_pretrained(model, torch_dtype="auto")
         model.seqlen = model.config.max_position_embeddings
     elif "llama" in model or "Llama" in model or "mistral" in model:
@@ -61,19 +62,21 @@ def get_model(model):
 """
 The function is employed to calibrate and quantize models layer by layer.
 """
+
+
 @torch.no_grad()
 def quant_sequential_braqgptq(model, dataloader, dev):
     print("Starting ...")
-    
-    if hasattr(model, 'hf_device_map') and "model.embed_tokens" in model.hf_device_map:
+
+    if hasattr(model, "hf_device_map") and "model.embed_tokens" in model.hf_device_map:
         dev = model.hf_device_map["model.embed_tokens"]
-    
+
     if args.salient_metric == "auto":
         engine = MetricEngine()
         graph_string = engine.generate_random_graph()
         print(f"Current graph: {graph_string}")
     else:
-        engine = None 
+        engine = None
 
     for name, module in model.named_modules():
         module.global_name = args.model + name
@@ -156,14 +159,20 @@ def quant_sequential_braqgptq(model, dataloader, dev):
     print("Ready.")
 
     for i in range(len(layers)):
-        
-        if hasattr(model, 'hf_device_map') and f"model.layers.{i}" in model.hf_device_map:   ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
+
+        if (
+            hasattr(model, "hf_device_map")
+            and f"model.layers.{i}" in model.hf_device_map
+        ):  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
             dev = model.hf_device_map[f"model.layers.{i}"]
-            inps, outs, attention_mask = inps.to(dev), outs.to(dev), attention_mask.to(dev)
-        
+            inps, outs, attention_mask = (
+                inps.to(dev),
+                outs.to(dev),
+                attention_mask.to(dev),
+            )
+
         layer = layers[i].to(dev)
         subset = find_layers(layer)
-        
 
         gptq = {}
         for name in subset:
@@ -181,7 +190,7 @@ def quant_sequential_braqgptq(model, dataloader, dev):
                 braq_quantizer,
                 salient_metric=args.salient_metric,
                 disable_gptq=args.disable_gptq,
-                engine=engine, 
+                engine=engine,
             )
 
         def add_batch(name):
@@ -196,7 +205,7 @@ def quant_sequential_braqgptq(model, dataloader, dev):
 
         for j in range(args.nsamples):
             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
-            
+
         for h in handles:
             h.remove()
 
@@ -321,13 +330,13 @@ def quant_sequential_pbllm(model, dataloader, dev):
                 method=args.low_quant_method,
                 groupsize=args.groupsize,
             )
-            
+
             # low_quantizer = Binarization(
             #     subset[name].weight,
             #     method=args.low_quant_method,
             #     groupsize=args.groupsize,
             # )
-            
+
             high_quantizer = HighQuantizer(
                 args.high_bit,
                 perchannel=True,
@@ -379,7 +388,6 @@ def quant_sequential_pbllm(model, dataloader, dev):
 
     model.config.use_cache = use_cache
     return model
-
 
 
 if __name__ == "__main__":
@@ -490,8 +498,20 @@ if __name__ == "__main__":
         ],
     )
     parser.add_argument(
-        "--sparsity_type", type=str, choices=["unstructured", "4:8", "2:4", "5:8", "6:8", "7:8",
-                                              "1:8", "0:8", "2:8", "3:8"]
+        "--sparsity_type",
+        type=str,
+        choices=[
+            "unstructured",
+            "4:8",
+            "2:4",
+            "5:8",
+            "6:8",
+            "7:8",
+            "1:8",
+            "0:8",
+            "2:8",
+            "3:8",
+        ],
     )
     parser.add_argument(
         "--sparsity_ratio", type=float, default=0, help="Sparsity level"
@@ -554,13 +574,13 @@ if __name__ == "__main__":
         action="store_true",
         help="order of activation",
     )
-    
+
     parser.add_argument(
         "--static_groups",
         action="store_true",
         help="static groups",
     )
-    
+
     parser.add_argument(
         "--eval_zero_shot",
         action="store_true",
@@ -578,9 +598,9 @@ if __name__ == "__main__":
     # Handling n:m sparsity
     prune_n, prune_m = 0, 0
     # if args.sparsity_type != "unstructured":
-        # assert (
-        #     args.sparsity_ratio == 0.5
-        # ), "sparsity ratio must be 0.5 for structured N:M sparsity"
+    # assert (
+    #     args.sparsity_ratio == 0.5
+    # ), "sparsity ratio must be 0.5 for structured N:M sparsity"
     prune_n, prune_m = map(int, args.sparsity_type.split(":"))
 
     if args.load_quantized:
@@ -656,20 +676,30 @@ if __name__ == "__main__":
 
     if args.eval_zero_shot:
         from eval_ppl_utils import eval_zero_shot
-        accelerate=False
-        if "30b" in args.model or "65b" in args.model or "70b" in args.model:
-            accelerate=True
 
-        task_list = ["boolq", "rte","hellaswag","winogrande", "arc_easy","arc_challenge", "openbookqa"]
+        accelerate = False
+        if "30b" in args.model or "65b" in args.model or "70b" in args.model:
+            accelerate = True
+
+        task_list = [
+            "boolq",
+            "rte",
+            "hellaswag",
+            "winogrande",
+            "arc_easy",
+            "arc_challenge",
+            "openbookqa",
+        ]
         num_shot = 0
-        results = eval_zero_shot(args.model, model, tokenizer, task_list, num_shot, accelerate)
+        results = eval_zero_shot(
+            args.model, model, tokenizer, task_list, num_shot, accelerate
+        )
         print("********************************")
         print("zero_shot evaluation results")
         print(results)
 
-
     for dataset in ["wikitext2"]:
-    # , "c4", "ptb"]: #TODO
+        # , "c4", "ptb"]: #TODO
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, seqlen=model.seqlen, model=args.model
         )
