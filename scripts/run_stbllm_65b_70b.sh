@@ -47,7 +47,7 @@ do
         SPARSITY_RATIO="${SPARSITY_RATIO_LIST[i]}"
         SPARSITY_TYPE="${SPARSITY_TYPE_LIST[i]}"
         
-        CUDA_VISIBLE_DEVICES=0,1,2,4 python3 run.py /aifs4su/mmdata/hf_download/$MODEL_NAME c4 braq --blocksize 128 \
+        CUDA_VISIBLE_DEVICES=0,1,2,4 python3 run.py /path/to/hf-model/$MODEL_NAME c4 braq --blocksize 128 \
             --salient_metric hessian \
             --prune_method ria_structure \
             --reconstruction \

@@ -298,7 +298,7 @@
 #     --sparsity_ratio 0.5 \
 #     --sparsity_type 4:8 > ./logs/sparsegpt_4mask_branch_stbllm_4mask_hessian_160.log 2>&1 &
 
-CUDA_VISIBLE_DEVICES=0 python3 run.py /aifs4su/mmdata/hf_download/llama-2-7b c4 braq --blocksize 128 \
+CUDA_VISIBLE_DEVICES=0 python3 run.py /path/to/hf-model/llama-2-7b c4 braq --blocksize 128 \
     --salient_metric hessian \
     --prune_method wanda \
     --reconstruction \

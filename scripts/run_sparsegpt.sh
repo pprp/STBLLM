@@ -118,7 +118,7 @@
 #     --minlayer 5 \
 #     --maxlayer 15 > ./logs/sparsegpt_f_4_l_4_bs128_mn5_mx15.log 2>&1
 
-# CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0 python3 run.py /aifs4su/mmdata/hf_download/llama-1-33b \
+# CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0 python3 run.py /path/to/hf-model/llama-1-33b \
 #     wikitext2 braq \
 #     --blocksize 128 \
 #     --salient_metric hessian \
@@ -126,7 +126,7 @@
 #     --sparsity_type 4:8 \
 #     --prune_method sparsegpt 
 
-# CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1 python3 run.py /aifs4su/mmdata/hf_download/llama-2-7b \
+# CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1 python3 run.py /path/to/hf-model/llama-2-7b \
 #     wikitext2 braq \
 #     --blocksize 128 \
 #     --salient_metric hessian \
@@ -134,7 +134,7 @@
 #     --sparsity_type 4:8 \
 #     --prune_method sparsegpt 
 
-CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 run.py /aifs4su/mmdata/hf_download/llama-2-70b \
+CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 run.py /path/to/hf-model/llama-2-70b \
     wikitext2 braq \
     --blocksize 128 \
     --salient_metric hessian \
@@ -142,7 +142,7 @@ CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 run.py /aifs4su/mmda
     --sparsity_type 4:8 \
     --prune_method sparsegpt > ./logs/llama-2-70b.log 2>&1 & 
 
-CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=4,5,6,7 python3 run.py /aifs4su/mmdata/hf_download/llama-1-66b \
+CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=4,5,6,7 python3 run.py /path/to/hf-model/llama-1-66b \
     wikitext2 braq \
     --blocksize 128 \
     --salient_metric hessian \

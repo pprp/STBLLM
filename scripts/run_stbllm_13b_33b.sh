@@ -60,7 +60,7 @@ while true; do
             echo "Starting experiment $((experiment_count + 1)) on GPU $gpu with Model: $MODEL_NAME, Sparsity ratio: $SPARSITY_RATIO, Sparsity type: $SPARSITY_TYPE"
 
 
-            CUDA_VISIBLE_DEVICES=$gpu python3 run.py /aifs4su/mmdata/hf_download/${MODEL_NAME} c4 braq --blocksize 128 \
+            CUDA_VISIBLE_DEVICES=$gpu python3 run.py /path/to/hf-model/${MODEL_NAME} c4 braq --blocksize 128 \
                 --salient_metric hessian \
                 --prune_method ria_structure \
                 --reconstruction \
