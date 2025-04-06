@@ -11,3 +11,4 @@ gradients/*
 lm-evaluation-harness/*
 plots/*
 logs/
+imgs/.DS_Store
