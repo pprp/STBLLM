@@ -15,8 +15,9 @@ MODEL_NAME_LIST=(
     # "llama-2-13b"
     # "llama-1-13b"
     # "llama-1-33b"
-    "llama-3-8b"
-    "mistral-7b"
+    # "llama-3-8b"
+    # "mistral-7b"
+    "llama-2-7b"
 )
 
 SPARSITY_RATIO_LIST=(
@@ -32,7 +33,7 @@ SPARSITY_TYPE_LIST=(
 )
 
 # Define GPU array
-GPUS=(7) # Assuming we have only five GPUs
+GPUS=(7) 
 
 # Initialize experiment counter
 experiment_count=0

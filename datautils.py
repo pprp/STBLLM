@@ -81,12 +81,12 @@ class TokenizerWrapper:
 
 def get_c4(nsamples, seed, seqlen, model, tokenizer):
     traindata = load_dataset(
-        "../../../data/c4",
+        "./data/c4",
         data_files={"train": "c4-train.00000-of-01024.json"},
         split="train",
     )
     valdata = load_dataset(
-        "../../../data/c4",
+        "./data/c4",
         data_files={"validation": "c4-validation.00000-of-00008.json"},
         split="validation",
     )

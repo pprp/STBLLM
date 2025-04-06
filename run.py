@@ -34,14 +34,13 @@ print("# of gpus: ", torch.cuda.device_count())
 
 
 def get_model(model):
-    import torch
-
     def skip(*args, **kwargs):
         pass
 
     torch.nn.init.kaiming_uniform_ = skip
     torch.nn.init.uniform_ = skip
     torch.nn.init.normal_ = skip
+
     if "opt" in model:
         from transformers import OPTForCausalLM
         model = OPTForCausalLM.from_pretrained(model, torch_dtype="auto")
@@ -53,6 +52,8 @@ def get_model(model):
             model, torch_dtype=torch.float16, device_map="auto"
         )
         model.seqlen = 2048
+    else:
+        raise NotImplementedError
 
     return model
 
@@ -60,8 +61,6 @@ def get_model(model):
 """
 The function is employed to calibrate and quantize models layer by layer.
 """
-
-
 @torch.no_grad()
 def quant_sequential_braqgptq(model, dataloader, dev):
     print("Starting ...")
@@ -99,10 +98,12 @@ def quant_sequential_braqgptq(model, dataloader, dev):
             and model.model.decoder.project_in
         ):
             model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
-    elif "llama" in args.model or "mistral" in args.model:
+    elif "llama" in args.model.lower() or "mistral" in args.model.lower():
         layers = model.model.layers
         model.model.embed_tokens = model.model.embed_tokens.to(dev)
         model.model.norm = model.model.norm.to(dev)
+    else:
+        raise NotImplementedError
     layers[0] = layers[0].to(dev)
 
     dtype = next(iter(model.parameters())).dtype
@@ -156,7 +157,7 @@ def quant_sequential_braqgptq(model, dataloader, dev):
 
     for i in range(len(layers)):
         
-        if f"model.layers.{i}" in model.hf_device_map:   ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
+        if hasattr(model, 'hf_device_map') and f"model.layers.{i}" in model.hf_device_map:   ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
             dev = model.hf_device_map[f"model.layers.{i}"]
             inps, outs, attention_mask = inps.to(dev), outs.to(dev), attention_mask.to(dev)
         
@@ -643,18 +644,15 @@ if __name__ == "__main__":
                 prune_ria_outlier_structure_special(
                     args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
                 )
-            # elif "pruner-zero" in args.prune_method:
-            #     engine = GPTree.load_tree('./data/best_tree.json')
-            #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
             else:
                 raise NotImplementedError
         end_time = time.time()
         print("pruning time: ", end_time - start_time)
 
-        # print("Begin quantizing ...")
-        # tick = time.time()
-        # model = quant_sequential_braqgptq(model, dataloader, device)
-        # print("quantization time:", time.time() - tick, "s")
+        print("Begin quantizing ...")
+        tick = time.time()
+        model = quant_sequential_braqgptq(model, dataloader, device)
+        print("quantization time:", time.time() - tick, "s")
 
     if args.eval_zero_shot:
         from eval_ppl_utils import eval_zero_shot
@@ -670,7 +668,8 @@ if __name__ == "__main__":
         print(results)
 
 
-    for dataset in ["wikitext2", "c4", "ptb"]:
+    for dataset in ["wikitext2"]:
+    # , "c4", "ptb"]: #TODO
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, seqlen=model.seqlen, model=args.model
         )
