@@ -33,7 +33,7 @@ SPARSITY_TYPE_LIST=(
 )
 
 # Define GPU array
-GPUS=(7) 
+GPUS=(7)
 
 # Initialize experiment counter
 experiment_count=0
@@ -51,12 +51,12 @@ while true; do
         # If the GPU is currently not running any experiment or the corresponding process has exited
         if [[ -z "${gpu_to_pid[$gpu]}" ]] || ! kill -0 "${gpu_to_pid[$gpu]}" 2>/dev/null; then
             echo "GPU $gpu is free or job exited, starting a new experiment"
-            
+
             # Select the model and sparsity configuration based on experiment count
             MODEL_NAME=${MODEL_NAME_LIST[$((experiment_count / 3))]}
             SPARSITY_RATIO=${SPARSITY_RATIO_LIST[$((experiment_count % 3))]}
             SPARSITY_TYPE=${SPARSITY_TYPE_LIST[$((experiment_count % 3))]}
-            
+
             echo "Starting experiment $((experiment_count + 1)) on GPU $gpu with Model: $MODEL_NAME, Sparsity ratio: $SPARSITY_RATIO, Sparsity type: $SPARSITY_TYPE"
 
 
@@ -69,7 +69,7 @@ while true; do
                 --sparsity_ratio ${SPARSITY_RATIO} \
                 --sparsity_type ${SPARSITY_TYPE} > $LOG_PATH/stbllm_${MODEL_NAME}_c4_ria-structure-${SPARSITY_TYPE}-${SPARSITY_RATIO}-wrec_hessian-4mask-billm-160_main.log 2>&1 &
 
-            
+
             # Store the PID of the background job
             job_pids+=($!)
             # Update the GPU-to-PID mapping

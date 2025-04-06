@@ -1,7 +1,9 @@
 from re import L
+
 import numpy as np
-from pyparsing import line
 import torch
+from pyparsing import line
+
 from utils.binary import high_order_residual
 from utils.mask import generate_structural_mask
 
@@ -17,7 +19,8 @@ def calculate_percentage_and_variance_original(weights, abs_weights, bin_edges):
     accum_percentages = [0]
     total_elements = abs_weights.numel()
     for i in range(len(bin_edges) - 1):
-        bin_mask = (abs_weights >= bin_edges[i]) & (abs_weights < bin_edges[i + 1])
+        bin_mask = (abs_weights >= bin_edges[i]) & (
+            abs_weights < bin_edges[i + 1])
         bin_weights = weights[bin_mask]
         percentages.append(bin_weights.numel() / total_elements * 100)
         accum_percentages.append(accum_percentages[-1] + percentages[-1])
@@ -29,10 +32,11 @@ def calculate_percentage_and_variance_original(weights, abs_weights, bin_edges):
 Include main method to search the rate for 2-bit salient data columns and the optimal split for 1-bit data
 """
 
+
 # 4mask
 def structural_searching(origin_matrix, up_lim=30):
-    minimal_value = float("inf")
-    minimal_value_0 = float("inf")
+    minimal_value = float('inf')
+    minimal_value_0 = float('inf')
 
     true_counts = origin_matrix.abs().sum(dim=0)
 
@@ -103,7 +107,7 @@ def structural_searching(origin_matrix, up_lim=30):
 
 def find_optimal_split(group_max, origin_matrix, border):
     optimal_split = None
-    minimal_value = float("inf")
+    minimal_value = float('inf')
     searching_steps = torch.arange(0.1, 0.8, 0.01)
     searching_steps = searching_steps * group_max
 
@@ -111,7 +115,6 @@ def find_optimal_split(group_max, origin_matrix, border):
         origin_matrix, torch.abs(origin_matrix) > border, order=2
     )
     for split_value in searching_steps:
-
         group1 = high_order_residual(
             origin_matrix,
             (torch.abs(origin_matrix) > split_value)
@@ -122,7 +125,8 @@ def find_optimal_split(group_max, origin_matrix, border):
             origin_matrix, torch.abs(origin_matrix) <= split_value, order=1
         )
 
-        quantize_error = error_computing(origin_matrix, group1 + group2 + group3)
+        quantize_error = error_computing(
+            origin_matrix, group1 + group2 + group3)
         if quantize_error < minimal_value:
             minimal_value = quantize_error
             optimal_split = split_value

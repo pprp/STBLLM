@@ -49,16 +49,16 @@ python3 run.py lmsys/vicuna-7b-v1.5 c4 braq --blocksize 128 --salient_metric hes
 
 We would like to acknowledge and thank the following works that inspired and contributed to this project:
 
-Here’s the updated list with the correct GitHub links for **RIA** and **OWL**:  
+Here’s the updated list with the correct GitHub links for **RIA** and **OWL**:
 
-- [**BiLLM**](https://github.com/Aaronhuang-778/BiLLM): First Post-Training Quantization Framework for Binarized Large Language Models 
-- [**GPTQ**](https://github.com/IST-DASLab/gptq): Accurate Post-training Compression for Generative Pretrained Transformers  
-- [**AWQ**](https://github.com/mit-han-lab/llm-awq): Activation-aware Weight Quantization for LLM Compression and Acceleration  
-- [**PB-LLM**](https://github.com/hahnyuan/PB-LLM): Partially Binarized Large Language Models  
-- [**SparseGPT**](https://github.com/IST-DASLab/sparsegpt): Efficient Sparsification Approach for Large Language Models  
-- [**Wanda**](https://github.com/locuslab/wanda): Weight-Based Pruning for Neural Networks  
+- [**BiLLM**](https://github.com/Aaronhuang-778/BiLLM): First Post-Training Quantization Framework for Binarized Large Language Models
+- [**GPTQ**](https://github.com/IST-DASLab/gptq): Accurate Post-training Compression for Generative Pretrained Transformers
+- [**AWQ**](https://github.com/mit-han-lab/llm-awq): Activation-aware Weight Quantization for LLM Compression and Acceleration
+- [**PB-LLM**](https://github.com/hahnyuan/PB-LLM): Partially Binarized Large Language Models
+- [**SparseGPT**](https://github.com/IST-DASLab/sparsegpt): Efficient Sparsification Approach for Large Language Models
+- [**Wanda**](https://github.com/locuslab/wanda): Weight-Based Pruning for Neural Networks
 - [**RIA**](https://github.com/biomedical-cybernetics/Relative-importance-and-activation-pruning): Relative Importance and Activation Pruning for Large Language Models
-- [**OWL**](https://github.com/luuyin/OWL): Optimized Layer-wise assignment for Efficient LLMs  
+- [**OWL**](https://github.com/luuyin/OWL): Optimized Layer-wise assignment for Efficient LLMs
 
 
 ## Citation
@@ -71,6 +71,6 @@ If you find *STBLLM* is useful and helpful to your work, please kindly cite this
     author={Peijie Dong and Lujun Li and Yuedong Zhong and DaYou Du and Ruibo FAN and Yuhan Chen and Zhenheng Tang and Qiang Wang and Wei Xue and Yike Guo and Xiaowen Chu},
     booktitle={International Conference on Learning Representations (ICLR)},
     year={2025},
-    url={https://openreview.net/forum?id=6XUSDvBFkV#}, 
+    url={https://openreview.net/forum?id=6XUSDvBFkV#},
 }
 ```

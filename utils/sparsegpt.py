@@ -9,9 +9,8 @@ torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
 
 
-## SparseGPT: https://github.com/IST-DASLab/sparsegpt/tree/f5c25005a61f96a0933ca2f95705a963585aafaa
+# SparseGPT: https://github.com/IST-DASLab/sparsegpt/tree/f5c25005a61f96a0933ca2f95705a963585aafaa
 class SparseGPT:
-
     def __init__(self, layer):
         self.layer = layer
         self.dev = self.layer.weight.device
@@ -83,7 +82,8 @@ class SparseGPT:
                     mask1 = mask[:, i1:i2]
                 else:
                     tmp = W1**2 / (torch.diag(Hinv1).reshape((1, -1))) ** 2
-                    thresh = torch.sort(tmp.flatten())[0][int(tmp.numel() * sparsity)]
+                    thresh = torch.sort(tmp.flatten())[
+                        0][int(tmp.numel() * sparsity)]
                     mask1 = tmp <= thresh
             else:
                 mask1 = torch.zeros_like(W1) == 1
@@ -94,11 +94,12 @@ class SparseGPT:
 
                 if prune_n != 0 and i % prune_m == 0:
                     tmp = (
-                        W1[:, i : (i + prune_m)] ** 2
-                        / (torch.diag(Hinv1)[i : (i + prune_m)].reshape((1, -1))) ** 2
+                        W1[:, i: (i + prune_m)] ** 2
+                        / (torch.diag(Hinv1)[i: (i + prune_m)].reshape((1, -1))) ** 2
                     )
                     mask1.scatter_(
-                        1, i + torch.topk(tmp, prune_n, dim=1, largest=False)[1], True
+                        1, i + torch.topk(tmp, prune_n, dim=1,
+                                          largest=False)[1], True
                     )
 
                 q = w.clone()
@@ -108,7 +109,8 @@ class SparseGPT:
                 Losses1[:, i] = (w - q) ** 2 / d**2
 
                 err1 = (w - q) / d
-                W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
+                W1[:,
+                    i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
                 Err1[:, i] = err1
 
             W[:, i1:i2] = Q1

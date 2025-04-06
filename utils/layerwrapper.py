@@ -1,12 +1,14 @@
-import os
 import math
+import os
 import time
 
 import torch
 import torch.nn as nn
 import transformers
-from .quant import *
+
 from utils.structure import structural_guassian_distribution
+
+from .quant import *
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
@@ -26,10 +28,10 @@ class WrappedGPT:
         args,
         layer,
         layer_id=0,
-        layer_name="none",
+        layer_name='none',
         reconstruct=True,
         braq_quantizer=None,
-        salient_metric="hessian",
+        salient_metric='hessian',
         disable_gptq=False,
         low_quantizer=None,
         high_quantizer=None,
@@ -46,7 +48,7 @@ class WrappedGPT:
             self.H = torch.zeros((self.columns, self.columns), device=self.dev)
         self.nsamples = 0
 
-        if "up" in layer_name or "gate" in layer_name:
+        if 'up' in layer_name or 'gate' in layer_name:
             self.out = torch.zeros((self.rows), device=self.dev)
         self.layer_id = layer_id
         self.layer_name = layer_name
@@ -78,7 +80,7 @@ class WrappedGPT:
             out = out.t()
 
         self.scaler_row *= self.nsamples / (self.nsamples + tmp)
-        if "up" in self.layer_name or "gate" in self.layer_name:
+        if 'up' in self.layer_name or 'gate' in self.layer_name:
             self.out *= self.nsamples / (self.nsamples + tmp)
 
         if self.reconstruct:
@@ -87,12 +89,12 @@ class WrappedGPT:
         self.nsamples += tmp
 
         inp = inp.type(torch.float32)
-        if "gate" in self.layer_name:
+        if 'gate' in self.layer_name:
             out = (self.sigmoid(out) * out).type(torch.float32)
-        elif "up" in self.layer_name:
+        elif 'up' in self.layer_name:
             out = out.type(torch.float32)
         self.scaler_row += torch.norm(inp, p=2, dim=1) ** 2 / self.nsamples
-        if "up" in self.layer_name or "gate" in self.layer_name:
+        if 'up' in self.layer_name or 'gate' in self.layer_name:
             self.out += torch.mean(torch.abs(out), dim=1) / self.nsamples
 
         if self.reconstruct:
@@ -130,7 +132,7 @@ class WrappedGPT:
             Hinv = H_tmp
 
         except torch._C._LinAlgError:
-            print("The matrix is not postive-definite, try a larger percdamp!")
+            print('The matrix is not postive-definite, try a larger percdamp!')
             percdamp = 0.1
             damp = percdamp * torch.mean(torch.diag(H))
             diag = torch.arange(self.columns, device=self.dev)
@@ -155,7 +157,8 @@ class WrappedGPT:
                     mask1 = mask[:, i1:i2]
                 else:
                     tmp = W1**2 / (torch.diag(Hinv1).reshape((1, -1))) ** 2
-                    thresh = torch.sort(tmp.flatten())[0][int(tmp.numel() * sparsity)]
+                    thresh = torch.sort(tmp.flatten())[
+                        0][int(tmp.numel() * sparsity)]
                     mask1 = tmp <= thresh
             else:
                 mask1 = torch.zeros_like(W1) == 1
@@ -166,11 +169,12 @@ class WrappedGPT:
 
                 if prune_n != 0 and i % prune_m == 0:
                     tmp = (
-                        W1[:, i : (i + prune_m)] ** 2
-                        / (torch.diag(Hinv1)[i : (i + prune_m)].reshape((1, -1))) ** 2
+                        W1[:, i: (i + prune_m)] ** 2
+                        / (torch.diag(Hinv1)[i: (i + prune_m)].reshape((1, -1))) ** 2
                     )
                     mask1.scatter_(
-                        1, i + torch.topk(tmp, prune_n, dim=1, largest=False)[1], True
+                        1, i + torch.topk(tmp, prune_n, dim=1,
+                                          largest=False)[1], True
                     )
 
                 q = w.clone()
@@ -180,7 +184,8 @@ class WrappedGPT:
                 Losses1[:, i] = (w - q) ** 2 / d**2
 
                 err1 = (w - q) / d
-                W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
+                W1[:,
+                    i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
                 Err1[:, i] = err1
 
             W[:, i1:i2] = Q1
@@ -230,7 +235,7 @@ class WrappedGPT:
             groups = []
             for i in range(0, self.columns, groupsize):
                 quantizer = copy.deepcopy(self.quantizer)
-                quantizer.find_params(W[:, i : (i + groupsize)], weight=True)
+                quantizer.find_params(W[:, i: (i + groupsize)], weight=True)
                 groups.append(quantizer)
 
         if actorder:
@@ -268,7 +273,7 @@ class WrappedGPT:
                     if not static_groups:
                         if (i1 + i) % groupsize == 0:
                             self.quantizer.find_params(
-                                W[:, (i1 + i) : (i1 + i + groupsize)], weight=True
+                                W[:, (i1 + i): (i1 + i + groupsize)], weight=True
                             )
                     else:
                         idx = i1 + i
@@ -286,7 +291,8 @@ class WrappedGPT:
                 Losses1[:, i] = (w - q) ** 2 / d**2
 
                 err1 = (w - q) / d
-                W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
+                W1[:,
+                    i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
                 Err1[:, i] = err1
 
             Q[:, i1:i2] = Q1
@@ -295,8 +301,8 @@ class WrappedGPT:
             W[:, i2:] -= Err1.matmul(Hinv[i1:i2, i2:])
 
         torch.cuda.synchronize()
-        print("time %.2f" % (time.time() - tick))
-        print("error", torch.sum(Losses).item())
+        print('time %.2f' % (time.time() - tick))
+        print('error', torch.sum(Losses).item())
 
         if actorder:
             Q = Q[:, invperm]
@@ -342,18 +348,19 @@ class WrappedGPT:
         for groupi in range(self.low_quantizer.n_groups):
             st = groupi * self.low_quantizer.groupsize
             ed = min(st + self.low_quantizer.groupsize, self.columns)
-            if self.salient_metric == "magnitude":
+            if self.salient_metric == 'magnitude':
                 saliency = torch.abs(W[:, st:ed])
                 thresh = torch.sort(saliency.flatten())[0][
                     int(saliency.numel() * low_frac)
                 ]
                 mask[:, st:ed] = saliency <= thresh
-            elif self.salient_metric == "hessian":
+            elif self.salient_metric == 'hessian':
                 tmp = (
                     W[:, st:ed] ** 2
                     / (torch.diag(H[st:ed, st:ed]).reshape((1, -1))) ** 2
                 )
-                thresh = torch.sort(tmp.flatten())[0][int(tmp.numel() * low_frac)]
+                thresh = torch.sort(tmp.flatten())[
+                    0][int(tmp.numel() * low_frac)]
                 mask[:, st:ed] = tmp <= thresh
             else:
                 raise NotImplementedError
@@ -373,7 +380,8 @@ class WrappedGPT:
                 q_high = self.high_quantizer.quantize(w)
                 groupi = col_st // self.low_quantizer.groupsize
                 q_low = self.low_quantizer.quantize(w, groupi)
-                q = q_high * ~mask[:, col_st:col_ed] + q_low * mask[:, col_st:col_ed]
+                q = q_high * ~mask[:, col_st:col_ed] + \
+                    q_low * mask[:, col_st:col_ed]
                 W[:, col_st:col_ed] = q
             else:
                 # shape of W1: [oc, n_cols]
@@ -388,7 +396,8 @@ class WrappedGPT:
                 else:
                     tmp = W1**2 / (torch.diag(Hinv1).reshape((1, -1))) ** 2
                     # TODO: use torch.kthvalue
-                    thresh = torch.sort(tmp.flatten())[0][int(tmp.numel() * low_frac)]
+                    thresh = torch.sort(tmp.flatten())[
+                        0][int(tmp.numel() * low_frac)]
                     mask1 = tmp <= thresh
 
                 for i in range(n_cols):
@@ -396,7 +405,8 @@ class WrappedGPT:
                     w = W1[:, i]
                     d = Hinv1[i, i]
 
-                    q_high = self.high_quantizer.quantize(w.unsqueeze(1)).flatten()
+                    q_high = self.high_quantizer.quantize(
+                        w.unsqueeze(1)).flatten()
                     # TODO: support groupsize>1
                     groupi = col_st // self.low_quantizer.groupsize
                     q_low = self.low_quantizer.quantize(
@@ -406,10 +416,10 @@ class WrappedGPT:
 
                     Q1[:, i] = q
                     Losses1[:, i] = (w - q) ** 2 / d**2
-                    # breakpoint()
 
                     err1 = (w - q) / d
-                    W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
+                    W1[:,
+                        i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
                     Err1[:, i] = err1
 
                 W[:, col_st:col_ed] = Q1
@@ -418,15 +428,15 @@ class WrappedGPT:
                 W[:, col_ed:] -= Err1.matmul(Hinv[col_st:col_ed, col_ed:])
 
         torch.cuda.synchronize()
-        print("time %.2f" % (time.time() - tick))
-        print("error", torch.sum(Losses).item())
+        print('time %.2f' % (time.time() - tick))
+        print('error', torch.sum(Losses).item())
 
         if isinstance(self.layer, transformers.Conv1D):
             W = W.t()
         self.layer.weight.data = W.reshape(self.layer.weight.shape).to(
             self.layer.weight.data.dtype
         )
-        return {"error": torch.sum(Losses).item()}
+        return {'error': torch.sum(Losses).item()}
 
     # NOTE: BRAGPTQ
     def bragptqquant(
@@ -488,7 +498,8 @@ class WrappedGPT:
                 q_part_groups = []
                 for i in range(mask.shape[0]):
                     q_part_groups.append(
-                        self.braq_quantizer.quantize(w, mask[i], order=orders[i])
+                        self.braq_quantizer.quantize(
+                            w, mask[i], order=orders[i])
                     )
 
                 q = torch.zeros_like(w)
@@ -506,7 +517,8 @@ class WrappedGPT:
                 q_part_groups = []
                 for i in range(mask.shape[0]):
                     q_part_groups.append(
-                        self.braq_quantizer.quantize(W1, mask[i], order=orders[i])
+                        self.braq_quantizer.quantize(
+                            W1, mask[i], order=orders[i])
                     )
 
                 for i in range(n_cols):
@@ -536,8 +548,8 @@ class WrappedGPT:
                     print(torch.sum(Losses))
 
         torch.cuda.synchronize()
-        print("time %.2f" % (time.time() - tick))
-        print("error", torch.sum(Losses).item())
+        print('time %.2f' % (time.time() - tick))
+        print('error', torch.sum(Losses).item())
 
         if isinstance(self.layer, transformers.Conv1D):
             W = W.t()
@@ -553,7 +565,7 @@ class WrappedGPT:
             del W1, Q1, W, Err1, Losses1, Hinv1
         del H, Hinv
         torch.cuda.empty_cache()
-        return {"error": torch.sum(Losses).item()}
+        return {'error': torch.sum(Losses).item()}
 
     # NOTE: PB-LLM + Bell-ship Spliting
     def lowhightquant_v2(
@@ -641,9 +653,11 @@ class WrappedGPT:
                 q_part_groups_high = []
                 for i in range(mask.shape[0]):
                     q_part_groups_low.append(
-                        self.low_quantizer.quantize(w, mask[i], order=orders[i])
+                        self.low_quantizer.quantize(
+                            w, mask[i], order=orders[i])
                     )
-                    q_part_groups_high.append(self.high_quantizer.quantize(w, ~mask[i]))
+                    q_part_groups_high.append(
+                        self.high_quantizer.quantize(w, ~mask[i]))
 
                 q = torch.zeros_like(w)
                 for j in range(mask.shape[0]):
@@ -663,7 +677,8 @@ class WrappedGPT:
 
                 for i in range(mask.shape[0]):
                     q_part_groups_low.append(
-                        self.low_quantizer.quantize(W1, mask[i], order=orders[i])
+                        self.low_quantizer.quantize(
+                            W1, mask[i], order=orders[i])
                     )
                     q_part_groups_high.append(
                         self.high_quantizer.quantize(W1, ~mask[i])
@@ -683,7 +698,8 @@ class WrappedGPT:
                     Losses1[:, i] = (w - q) ** 2 / d**2
 
                     err1 = (w - q) / d
-                    W1[:, i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
+                    W1[:,
+                        i:] -= err1.unsqueeze(1).matmul(Hinv1[i, i:].unsqueeze(0))
                     Err1[:, i] = err1
 
                 W[:, col_st:col_ed] = Q1
@@ -692,15 +708,15 @@ class WrappedGPT:
                 W[:, col_ed:] -= Err1.matmul(Hinv[col_st:col_ed, col_ed:])
 
         torch.cuda.synchronize()
-        print("time %.2f" % (time.time() - tick))
-        print("error", torch.sum(Losses).item())
+        print('time %.2f' % (time.time() - tick))
+        print('error', torch.sum(Losses).item())
 
         if isinstance(self.layer, transformers.Conv1D):
             W = W.t()
         self.layer.weight.data = W.reshape(self.layer.weight.shape).to(
             self.layer.weight.data.dtype
         )
-        return {"error": torch.sum(Losses).item()}
+        return {'error': torch.sum(Losses).item()}
 
     def free(self):
         self.H = None

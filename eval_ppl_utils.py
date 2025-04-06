@@ -1,17 +1,18 @@
+import fnmatch
 import time
 
 import torch
 import torch.nn as nn
-import fnmatch
+
 from datautils import TokenizerWrapper
 
 
 @torch.no_grad()
 def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
-    print("Evaluating ...")
+    print('Evaluating ...')
 
-    if hasattr(model, "hf_device_map") and "model.embed_tokens" in model.hf_device_map:
-        dev = model.hf_device_map["model.embed_tokens"]
+    if hasattr(model, 'hf_device_map') and 'model.embed_tokens' in model.hf_device_map:
+        dev = model.hf_device_map['model.embed_tokens']
 
     if not isinstance(testenc, TokenizerWrapper):
         testenc = testenc.to(dev)
@@ -33,7 +34,7 @@ def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     inps = torch.zeros(
         (nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev
     )
-    cache = {"i": 0, "attention_mask": None}
+    cache = {'i': 0, 'attention_mask': None}
 
     class Catcher(nn.Module):
         def __init__(self, module):
@@ -41,14 +42,14 @@ def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
             self.module = module
 
         def forward(self, inp, **kwargs):
-            inps[cache["i"]] = inp
-            cache["i"] += 1
-            cache["attention_mask"] = kwargs["attention_mask"]
+            inps[cache['i']] = inp
+            cache['i'] += 1
+            cache['attention_mask'] = kwargs['attention_mask']
             raise ValueError
 
     layers[0] = Catcher(layers[0])
     for i in range(nsamples):
-        batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(dev)
+        batch = testenc[:, (i * model.seqlen): ((i + 1) * model.seqlen)].to(dev)
         try:
             model(batch.to(dev))
         except ValueError:
@@ -60,14 +61,14 @@ def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     torch.cuda.empty_cache()
 
     outs = torch.zeros_like(inps)
-    attention_mask = cache["attention_mask"]
+    attention_mask = cache['attention_mask']
 
     for i in range(len(layers)):
         print(i)
         layer = layers[i]
 
-        if f"model.layers.{i}" in model.hf_device_map:
-            dev = model.hf_device_map[f"model.layers.{i}"]
+        if f'model.layers.{i}' in model.hf_device_map:
+            dev = model.hf_device_map[f'model.layers.{i}']
             inps, outs, attention_mask = (
                 inps.to(dev),
                 outs.to(dev),
@@ -77,7 +78,8 @@ def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
         layer = layer.to(dev)
 
         for j in range(nsamples):
-            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
+            outs[j] = layer(inps[j].unsqueeze(
+                0), attention_mask=attention_mask)[0]
         layers[i] = layer.cpu()
         del layer
         torch.cuda.empty_cache()
@@ -95,7 +97,7 @@ def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
             hidden_states = model.model.norm(hidden_states)
         lm_logits = model.lm_head(hidden_states)
         shift_logits = lm_logits[:, :-1, :].contiguous()
-        shift_labels = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)][:, 1:]
+        shift_labels = testenc[:, (i * model.seqlen): ((i + 1) * model.seqlen)][:, 1:]
         loss_fct = nn.CrossEntropyLoss()
         loss = loss_fct(
             shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
@@ -103,14 +105,14 @@ def llama_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
         neg_log_likelihood = loss.float() * model.seqlen
         nlls.append(neg_log_likelihood)
     ppl = torch.exp(torch.stack(nlls).sum() / (nsamples * model.seqlen))
-    print(f"Perplexity: {ppl.item():3f}")
+    print(f'Perplexity: {ppl.item():3f}')
 
     model.config.use_cache = use_cache
 
 
 @torch.no_grad()
 def opt_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
-    print("Evaluating ...")
+    print('Evaluating ...')
 
     testenc = testenc.input_ids
     nsamples = testenc.numel() // model.seqlen
@@ -120,10 +122,12 @@ def opt_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     layers = model.model.decoder.layers
 
     model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(dev)
-    model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(dev)
-    if hasattr(model.model.decoder, "project_out") and model.model.decoder.project_out:
-        model.model.decoder.project_out = model.model.decoder.project_out.to(dev)
-    if hasattr(model.model.decoder, "project_in") and model.model.decoder.project_in:
+    model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(
+        dev)
+    if hasattr(model.model.decoder, 'project_out') and model.model.decoder.project_out:
+        model.model.decoder.project_out = model.model.decoder.project_out.to(
+            dev)
+    if hasattr(model.model.decoder, 'project_in') and model.model.decoder.project_in:
         model.model.decoder.project_in = model.model.decoder.project_in.to(dev)
     layers[0] = layers[0].to(dev)
 
@@ -131,7 +135,7 @@ def opt_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     inps = torch.zeros(
         (nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev
     )
-    cache = {"i": 0, "attention_mask": None}
+    cache = {'i': 0, 'attention_mask': None}
 
     class Catcher(nn.Module):
         def __init__(self, module):
@@ -139,14 +143,14 @@ def opt_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
             self.module = module
 
         def forward(self, inp, **kwargs):
-            inps[cache["i"]] = inp
-            cache["i"] += 1
-            cache["attention_mask"] = kwargs["attention_mask"]
+            inps[cache['i']] = inp
+            cache['i'] += 1
+            cache['attention_mask'] = kwargs['attention_mask']
             raise ValueError
 
     layers[0] = Catcher(layers[0])
     for i in range(nsamples):
-        batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(dev)
+        batch = testenc[:, (i * model.seqlen): ((i + 1) * model.seqlen)].to(dev)
         try:
             model(batch)
         except ValueError:
@@ -156,21 +160,22 @@ def opt_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
     layers[0] = layers[0].cpu()
     model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.cpu()
     model.model.decoder.embed_positions = model.model.decoder.embed_positions.cpu()
-    if hasattr(model.model.decoder, "project_out") and model.model.decoder.project_out:
+    if hasattr(model.model.decoder, 'project_out') and model.model.decoder.project_out:
         model.model.decoder.project_out = model.model.decoder.project_out.cpu()
-    if hasattr(model.model.decoder, "project_in") and model.model.decoder.project_in:
+    if hasattr(model.model.decoder, 'project_in') and model.model.decoder.project_in:
         model.model.decoder.project_in = model.model.decoder.project_in.cpu()
     torch.cuda.empty_cache()
 
     outs = torch.zeros_like(inps)
-    attention_mask = cache["attention_mask"]
+    attention_mask = cache['attention_mask']
 
     for i in range(len(layers)):
         print(i)
         layer = layers[i].to(dev)
 
         for j in range(nsamples):
-            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
+            outs[j] = layer(inps[j].unsqueeze(
+                0), attention_mask=attention_mask)[0]
         layers[i] = layer.cpu()
         del layer
         torch.cuda.empty_cache()
@@ -181,7 +186,8 @@ def opt_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
             dev
         )
     if model.model.decoder.project_out is not None:
-        model.model.decoder.project_out = model.model.decoder.project_out.to(dev)
+        model.model.decoder.project_out = model.model.decoder.project_out.to(
+            dev)
     model.lm_head = model.lm_head.to(dev)
 
     testenc = testenc.to(dev)
@@ -194,7 +200,7 @@ def opt_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
             hidden_states = model.model.decoder.project_out(hidden_states)
         lm_logits = model.lm_head(hidden_states)
         shift_logits = lm_logits[:, :-1, :].contiguous()
-        shift_labels = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)][:, 1:]
+        shift_labels = testenc[:, (i * model.seqlen): ((i + 1) * model.seqlen)][:, 1:]
         loss_fct = nn.CrossEntropyLoss()
         loss = loss_fct(
             shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
@@ -202,8 +208,8 @@ def opt_eval(model, testenc, dev, dataset: str, log_wandb: bool = False):
         neg_log_likelihood = loss.float() * model.seqlen
         nlls.append(neg_log_likelihood)
     ppl = torch.exp(torch.stack(nlls).sum() / (nsamples * model.seqlen))
-    print(f"Perplexity: {ppl.item():3f}")
-    print({f"{dataset}/perplexity": ppl.item()})
+    print(f'Perplexity: {ppl.item():3f}')
+    print({f'{dataset}/perplexity': ppl.item()})
 
     model.config.use_cache = use_cache
 
@@ -213,19 +219,19 @@ def eval_zero_shot(
     model,
     tokenizer,
     task_list=[
-        "boolq",
-        "rte",
-        "hellaswag",
-        "winogrande",
-        "arc_challenge",
-        "arc_easy",
-        "openbookqa",
+        'boolq',
+        'rte',
+        'hellaswag',
+        'winogrande',
+        'arc_challenge',
+        'arc_easy',
+        'openbookqa',
     ],
     num_fewshot=0,
     use_accelerate=False,
     add_special_tokens=False,
 ):
-    from lm_eval import tasks, evaluator
+    from lm_eval import evaluator, tasks
 
     def pattern_match(patterns, source_list):
         task_names = set()
@@ -235,16 +241,16 @@ def eval_zero_shot(
         return list(task_names)
 
     task_names = pattern_match(task_list, tasks.ALL_TASKS)
-    model_args = f"pretrained={model_name},cache_dir=./llm_weights"
+    model_args = f'pretrained={model_name},cache_dir=./llm_weights'
     limit = None
-    if "70b" in model_name or "65b" in model_name:
+    if '70b' in model_name or '65b' in model_name:
         limit = 2000
     if use_accelerate:
         model_args = (
-            f"pretrained={model_name},cache_dir=./llm_weights,use_accelerate=True"
+            f'pretrained={model_name},cache_dir=./llm_weights,use_accelerate=True'
         )
     results = evaluator.simple_evaluate(
-        model="hf-causal-experimental",
+        model='hf-causal-experimental',
         model_args=model_args,
         tasks=task_names,
         num_fewshot=num_fewshot,

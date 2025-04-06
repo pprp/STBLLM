@@ -1,9 +1,11 @@
+import math
+
 import numpy as np
 import torch
 import torch.nn as nn
-import math
 import torch.nn.functional as F
-from utils.binary import normal_quantize, high_order_residual
+
+from utils.binary import high_order_residual, normal_quantize
 
 
 def gptq_quantize(x, scale, zero, maxq):
@@ -20,12 +22,11 @@ def high_quantize(x, scale, zero, maxq):
 
 # NOTE: Normal quantizer utilized in GPTQ
 class GPTQQuantizer(nn.Module):
-
     def __init__(self, shape=1):
         super(GPTQQuantizer, self).__init__()
-        self.register_buffer("maxq", torch.tensor(0))
-        self.register_buffer("scale", torch.zeros(shape))
-        self.register_buffer("zero", torch.zeros(shape))
+        self.register_buffer('maxq', torch.tensor(0))
+        self.register_buffer('scale', torch.zeros(shape))
+        self.register_buffer('zero', torch.zeros(shape))
 
     def configure(
         self,
@@ -91,14 +92,16 @@ class GPTQQuantizer(nn.Module):
                 self.zero = torch.round(-xmin / self.scale)
 
         if self.mse:
-            best = torch.full([x.shape[0]], float("inf"), device=dev)
+            best = torch.full([x.shape[0]], float('inf'), device=dev)
             for i in range(int(self.maxshrink * self.grid)):
                 p = 1 - i / self.grid
                 xmin1 = p * xmin
                 xmax1 = p * xmax
                 scale1 = (xmax1 - xmin1) / self.maxq
-                zero1 = torch.round(-xmin1 / scale1) if not self.sym else self.zero
-                q = gptq_quantize(x, scale1.unsqueeze(1), zero1.unsqueeze(1), self.maxq)
+                zero1 = torch.round(-xmin1 /
+                                    scale1) if not self.sym else self.zero
+                q = gptq_quantize(x, scale1.unsqueeze(
+                    1), zero1.unsqueeze(1), self.maxq)
                 q -= x
                 q.abs_()
                 q.pow_(self.norm)
@@ -146,19 +149,19 @@ class GPTQQuantizer(nn.Module):
 try:
     import quant_cuda
 except:
-    print("CUDA extension not installed.")
+    print('CUDA extension not installed.')
 
 
 # Assumes layer is perfectly divisible into 1024 * 1024 blocks
 class Quant3Linear(nn.Module):
-
     def __init__(self, infeatures, outfeatures, faster=False):
         super().__init__()
-        self.register_buffer("zeros", torch.zeros((outfeatures, 1)))
-        self.register_buffer("scales", torch.zeros((outfeatures, 1)))
-        self.register_buffer("bias", torch.zeros(outfeatures))
+        self.register_buffer('zeros', torch.zeros((outfeatures, 1)))
+        self.register_buffer('scales', torch.zeros((outfeatures, 1)))
+        self.register_buffer('bias', torch.zeros(outfeatures))
         self.register_buffer(
-            "qweight", torch.zeros((infeatures // 32 * 3, outfeatures), dtype=torch.int)
+            'qweight', torch.zeros(
+                (infeatures // 32 * 3, outfeatures), dtype=torch.int)
         )
         self.faster = faster
 
@@ -214,18 +217,19 @@ class Quant3Linear(nn.Module):
                 )
             else:
                 x = x.float()
-                quant_cuda.vecquant3matmul(x, self.qweight, y, self.scales, self.zeros)
+                quant_cuda.vecquant3matmul(
+                    x, self.qweight, y, self.scales, self.zeros)
             y = y.to(dtype)
             return y.reshape(outshape)
-        raise ValueError("Only supports a single token currently.")
+        raise ValueError('Only supports a single token currently.')
 
 
-def make_quant3(module, names, name="", faster=False):
+def make_quant3(module, names, name='', faster=False):
     if isinstance(module, Quant3Linear):
         return
     for attr in dir(module):
         tmp = getattr(module, attr)
-        name1 = name + "." + attr if name != "" else attr
+        name1 = name + '.' + attr if name != '' else attr
         if name1 in names:
             setattr(
                 module,
@@ -234,13 +238,12 @@ def make_quant3(module, names, name="", faster=False):
             )
     for name1, child in module.named_children():
         make_quant3(
-            child, names, name + "." + name1 if name != "" else name1, faster=faster
+            child, names, name + '.' + name1 if name != '' else name1, faster=faster
         )
 
 
 # NOTE: HightQuantizer from PB-LLM
 class HighQuantizer(nn.Module):
-
     def __init__(
         self,
         bits,
@@ -254,9 +257,9 @@ class HighQuantizer(nn.Module):
         shape=1,
     ):
         super().__init__()
-        self.register_buffer("maxq", torch.tensor(0))
-        self.register_buffer("scale", torch.zeros(shape))
-        self.register_buffer("zero", torch.zeros(shape))
+        self.register_buffer('maxq', torch.tensor(0))
+        self.register_buffer('scale', torch.zeros(shape))
+        self.register_buffer('zero', torch.zeros(shape))
         self.maxq = torch.tensor(2**bits - 1)
         self.perchannel = perchannel
         self.sym = sym
@@ -307,14 +310,16 @@ class HighQuantizer(nn.Module):
             self.zero = torch.round(-xmin / self.scale)
 
         if self.mse:
-            best = torch.full([x.shape[0]], float("inf"), device=dev)
+            best = torch.full([x.shape[0]], float('inf'), device=dev)
             for i in range(int(self.maxshrink * self.grid)):
                 p = 1 - i / self.grid
                 xmin1 = p * xmin
                 xmax1 = p * xmax
                 scale1 = (xmax1 - xmin1) / self.maxq
-                zero1 = torch.round(-xmin1 / scale1) if not self.sym else self.zero
-                q = high_quantize(x, scale1.unsqueeze(1), zero1.unsqueeze(1), self.maxq)
+                zero1 = torch.round(-xmin1 /
+                                    scale1) if not self.sym else self.zero
+                q = high_quantize(x, scale1.unsqueeze(
+                    1), zero1.unsqueeze(1), self.maxq)
                 q -= x
                 q.abs_()
                 q.pow_(self.norm)
@@ -363,40 +368,38 @@ class HighQuantizer(nn.Module):
 
 
 class BinaryQuantizer(nn.Module):
-
-    def __init__(self, weight, method="2bit", groupsize=-1):
+    def __init__(self, weight, method='2bit', groupsize=-1):
         super().__init__()
         oc, ic = weight.shape
         if groupsize == -1:
             groupsize = ic
         self.groupsize = groupsize
         self.n_groups = math.ceil(ic / groupsize)
-        if "bit" in method:
-            self.register_buffer("maxq", torch.tensor(1))
-            self.register_buffer("zero", torch.zeros(self.n_groups, oc, 1))
+        if 'bit' in method:
+            self.register_buffer('maxq', torch.tensor(1))
+            self.register_buffer('zero', torch.zeros(self.n_groups, oc, 1))
 
-        self.register_buffer("scale", torch.zeros(self.n_groups, oc, 1))
-        self.register_buffer("mean", torch.zeros(self.n_groups, oc, 1))
+        self.register_buffer('scale', torch.zeros(self.n_groups, oc, 1))
+        self.register_buffer('mean', torch.zeros(self.n_groups, oc, 1))
         self.method = method
 
     def quantize(self, w, mask, order=2, groupi=0):
-        if self.method == "xnor":
+        if self.method == 'xnor':
             w_mean = self.mean[groupi]
             w = w - w_mean  # oc, ic
             w = w.sign()
             w = w * self.scale[groupi]
             w += w_mean
-        elif self.method == "braq":  # The method used in paper
+        elif self.method == 'braq':  # The method used in paper
             w = high_order_residual(w, mask, order=order)
-        elif self.method == "sign":
+        elif self.method == 'sign':
             w = (w > 0).float()
             w *= self.scale[groupi]
-        elif self.method == "rtn":
+        elif self.method == 'rtn':
             w = F.relu(w)
             w_int = (w / self.scale[groupi]).round().clamp(0, 1)
             w = w_int * self.scale[groupi]
-        elif self.method in ["2bit", "4bit"]:
-
+        elif self.method in ['2bit', '4bit']:
             bits = int(self.method[0])
             perchannel = True
             weight = True
@@ -447,30 +450,29 @@ class BinaryQuantizer(nn.Module):
                 scale = scale.reshape(shape)
                 zero = zero.reshape(shape)
             w = normal_quantize(w, scale, zero, maxq)
-        elif self.method == "prune":
+        elif self.method == 'prune':
             return torch.zeros_like(w)
         return w
 
 
 class LowQuantizer(nn.Module):
-
-    def __init__(self, weight, method="xnor", groupsize=-1):
+    def __init__(self, weight, method='xnor', groupsize=-1):
         super().__init__()
         oc, ic = weight.shape
         if groupsize == -1:
             groupsize = ic
         self.groupsize = groupsize
         self.n_groups = math.ceil(ic / groupsize)
-        if "bit" in method:
-            self.register_buffer("maxq", torch.tensor(1))
-            self.register_buffer("zero", torch.zeros(self.n_groups, oc, 1))
+        if 'bit' in method:
+            self.register_buffer('maxq', torch.tensor(1))
+            self.register_buffer('zero', torch.zeros(self.n_groups, oc, 1))
 
-        self.register_buffer("scale", torch.zeros(self.n_groups, oc, 1))
-        self.register_buffer("mean", torch.zeros(self.n_groups, oc, 1))
+        self.register_buffer('scale', torch.zeros(self.n_groups, oc, 1))
+        self.register_buffer('mean', torch.zeros(self.n_groups, oc, 1))
         self.method = method
 
     def calibrate(self, w, mask=None, groupi=0):
-        if self.method == "xnor":
+        if self.method == 'xnor':
             # TODO: seems to have problem
             w_mean = w.mean(-1).view(-1, 1)  # oc, ic(blocksize)
             self.mean[groupi] = w_mean
@@ -479,22 +481,22 @@ class LowQuantizer(nn.Module):
             # scale = w.abs().sum(-1,keepdim=True)/(non_zero_nums+1e-5)
             scale = w.abs().mean(-1, keepdim=True)
             # TODO: search mean and scale
-        elif self.method == "sign":
+        elif self.method == 'sign':
             # w_relu=F.relu(w)
             # scale=w_relu.sum()/((w>0).float().sum()+1e-5)
             scale = F.relu(w).mean(-1, keepdim=True)
             # scale=w.abs().mean(-1,keepdim=True)
             # scale=w.mean(-1,keepdim=True)
-        elif self.method == "rtn":
+        elif self.method == 'rtn':
             scale = w.abs().mean(-1, keepdim=True) + 1e-5
-        elif self.method in ["no", "prune"]:
+        elif self.method in ['no', 'prune']:
             return
-        elif self.method in ["2bit", "4bit"]:
+        elif self.method in ['2bit', '4bit']:
             w = w
             dev = w.device
-            if self.method == "2bit":
+            if self.method == '2bit':
                 self.maxq.fill_(3)
-            elif self.method == "4bit":
+            elif self.method == '4bit':
                 self.maxq.fill_(7)
             self.maxq = self.maxq.to(dev)
             self.scale = self.scale.to(dev)
@@ -510,9 +512,10 @@ class LowQuantizer(nn.Module):
 
             scale = (xmax - xmin) / self.maxq
             scale = scale.reshape(-1, 1)
-            self.zero[groupi] = torch.round(-xmin / scale[groupi]).reshape(-1, 1)
+            self.zero[groupi] = torch.round(-xmin /
+                                            scale[groupi]).reshape(-1, 1)
         else:
-            raise NotImplementedError(f"method {self.method} not implemented")
+            raise NotImplementedError(f'method {self.method} not implemented')
         self.scale[groupi] = scale
         self.scale.to(w.device)
 
@@ -520,7 +523,7 @@ class LowQuantizer(nn.Module):
         if w.device != self.scale.device:
             self.scale = self.scale.to(w.device)
             self.mean = self.mean.to(w.device)
-        if self.method == "xnor":
+        if self.method == 'xnor':
             # return torch.zeros_like(w)
             w_mean = self.mean[groupi]
             w = w - w_mean  # oc, ic
@@ -529,18 +532,19 @@ class LowQuantizer(nn.Module):
             w = w * self.scale[groupi]
             w += w_mean
 
-        elif self.method == "sign":
+        elif self.method == 'sign':
             w = (w > 0).float()
             w *= self.scale[groupi]
-        elif self.method == "rtn":
+        elif self.method == 'rtn':
             w = F.relu(w)
             w_int = (w / self.scale[groupi]).round().clamp(0, 1)
             w = w_int * self.scale[groupi]
-        elif self.method in ["2bit", "4bit"]:
+        elif self.method in ['2bit', '4bit']:
             q = torch.clamp(
-                torch.round(w / self.scale[groupi]) + self.zero[groupi], 0, self.maxq
+                torch.round(w / self.scale[groupi]) +
+                self.zero[groupi], 0, self.maxq
             )
             w = self.scale[groupi] * (q - self.zero[groupi])
-        elif self.method == "prune":
+        elif self.method == 'prune':
             return torch.zeros_like(w)
         return w

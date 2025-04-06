@@ -1,4 +1,5 @@
 import torch
+
 from utils.autosearch import structural_searching
 from utils.mask import generate_structural_mask
 
@@ -11,22 +12,23 @@ def fun1_standardize(M):
     M = M / std.expand_as(M)
     return M
 
+
 # 4mask
 def structural_guassian_distribution(
-    tmp, H=None, X_dict=None, metric="magnitude", up_lim=30, engine=None
+    tmp, H=None, X_dict=None, metric='magnitude', up_lim=30, engine=None
 ):
-    if metric == "hessian":
+    if metric == 'hessian':
         target_weights = tmp**2 / (torch.diag(H).reshape((1, -1))) ** 2
-    elif metric == "magnitude":
+    elif metric == 'magnitude':
         target_weights = tmp
-    elif metric == "ria":
-        X = X_dict["ROW"]
+    elif metric == 'ria':
+        X = X_dict['ROW']
         target_weights = (
             torch.abs(tmp) / torch.sum(torch.abs(tmp), dim=0)
             + torch.abs(tmp) / torch.sum(torch.abs(tmp), dim=1).reshape(-1, 1)
         ) * (torch.sqrt(X)) ** 0.5
         target_weights = fun1_standardize(target_weights)
-    elif metric == "auto":
+    elif metric == 'auto':
         target_weights = engine.compute_metric(tmp, X_dict)
     else:
         raise NotImplementedError

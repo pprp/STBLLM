@@ -4,13 +4,13 @@ import time
 import torch
 import torch.nn as nn
 import transformers
+
 from utils.structure import structural_guassian_distribution
 
 DEBUG = False
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
-
 """
 BRAGPTQ is the meaning of GPTQ used Binary Residual Approximation in paper to realize 1-bit quantization
 BRAGPTQ uses structural mask to distinguish outliers and other data, and takes advantage of part of GPTQ to lower error
@@ -98,12 +98,14 @@ class BRAGPTQ:
         self.scaler_col_l1 += torch.mean(torch.abs(out), dim=1) / self.nsamples
 
         self.scaler_row_mean += (
-            torch.mean(torch.abs(inp) / torch.sum(torch.abs(inp), dim=0), dim=1)
+            torch.mean(torch.abs(inp) /
+                       torch.sum(torch.abs(inp), dim=0), dim=1)
             / self.nsamples
         )
         self.scaler_row_std += torch.std(inp, dim=1) ** 2 / self.nsamples
         self.scaler_col_mean += (
-            torch.mean(torch.abs(out) / torch.sum(torch.abs(out), dim=0), dim=1)
+            torch.mean(torch.abs(out) /
+                       torch.sum(torch.abs(out), dim=0), dim=1)
             / self.nsamples
         )
         self.scaler_col_std += torch.std(out, dim=1) ** 2 / self.nsamples
@@ -117,15 +119,15 @@ class BRAGPTQ:
     ):
         W = self.layer.weight.data.clone()
         X_dict = {
-            "ROW": self.scaler_row.reshape((1, -1)),
-            "COL": self.scaler_col.reshape((1, -1)),
-            "VAR": self.scaler_var.reshape((1, -1)),
-            "COL_L1": self.scaler_col_l1.reshape((1, -1)),
-            "ROW_L1": self.scaler_row_l1.reshape((1, -1)),
-            "ROW_MEAN": self.scaler_row_mean.reshape((1, -1)),
-            "ROW_STD": self.scaler_row_std.reshape((1, -1)),
-            "COL_MEAN": self.scaler_col_mean.reshape((1, -1)),
-            "COL_STD": self.scaler_col_std.reshape((1, -1)),
+            'ROW': self.scaler_row.reshape((1, -1)),
+            'COL': self.scaler_col.reshape((1, -1)),
+            'VAR': self.scaler_var.reshape((1, -1)),
+            'COL_L1': self.scaler_col_l1.reshape((1, -1)),
+            'ROW_L1': self.scaler_row_l1.reshape((1, -1)),
+            'ROW_MEAN': self.scaler_row_mean.reshape((1, -1)),
+            'ROW_STD': self.scaler_row_std.reshape((1, -1)),
+            'COL_MEAN': self.scaler_col_mean.reshape((1, -1)),
+            'COL_STD': self.scaler_col_std.reshape((1, -1)),
         }
 
         if isinstance(self.layer, nn.Conv2d):
@@ -190,7 +192,8 @@ class BRAGPTQ:
                 q_part_groups = []
                 for i in range(mask.shape[0]):
                     q_part_groups.append(
-                        self.braq_quantizer.quantize(w, mask[i], order=orders[i])
+                        self.braq_quantizer.quantize(
+                            w, mask[i], order=orders[i])
                     )
 
                 q = torch.zeros_like(w)
@@ -215,7 +218,8 @@ class BRAGPTQ:
                     # else:
                     #     raise ValueError("Invalid method")
                     q_part_groups.append(
-                        self.braq_quantizer.quantize(W1, mask[i], order=orders[i])
+                        self.braq_quantizer.quantize(
+                            W1, mask[i], order=orders[i])
                     )
 
                 for i in range(n_cols):
@@ -245,8 +249,8 @@ class BRAGPTQ:
                     print(torch.sum(Losses))
 
         torch.cuda.synchronize()
-        print("time %.2f" % (time.time() - tick))
-        print("error", torch.sum(Losses).item())
+        print('time %.2f' % (time.time() - tick))
+        print('error', torch.sum(Losses).item())
 
         if isinstance(self.layer, transformers.Conv1D):
             W = W.t()
@@ -262,7 +266,7 @@ class BRAGPTQ:
             del W1, Q1, W, Err1, Losses1, Hinv1
         del H, Hinv
         torch.cuda.empty_cache()
-        return {"error": torch.sum(Losses).item()}
+        return {'error': torch.sum(Losses).item()}
 
     def free(self):
         if DEBUG:

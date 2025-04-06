@@ -1,6 +1,7 @@
-import torch
 import json
 import random
+
+import torch
 
 
 def fun1_standardize(M):
@@ -13,7 +14,7 @@ def fun1_standardize(M):
         std = M.std() + 1e-5
         M = (M - M.mean()) / std
     else:
-        raise ValueError("Input tensor must have either 1 or 2 dimensions.")
+        raise ValueError('Input tensor must have either 1 or 2 dimensions.')
     return M
 
 
@@ -29,7 +30,7 @@ def fun2_ria(M):
     elif M.dim() == 1:
         return torch.abs(M) / (torch.sum(torch.abs(M)) + 1e-5)
     else:
-        raise ValueError("Input tensor must have either 1 or 2 dimensions.")
+        raise ValueError('Input tensor must have either 1 or 2 dimensions.')
 
 
 def fun3_log_1(M):
@@ -47,7 +48,7 @@ def fun4_min_max_scale(M):
         M_max = M.max()
         return (M - M_min) / (M_max - M_min + 1e-5)
     else:
-        raise ValueError("Input tensor must have either 1 or 2 dimensions.")
+        raise ValueError('Input tensor must have either 1 or 2 dimensions.')
 
 
 def fun5_mean(M):
@@ -56,7 +57,7 @@ def fun5_mean(M):
     elif M.dim() == 1:
         return M / M.mean(dim=0, keepdim=True)
     else:
-        raise ValueError("Input tensor must have either 1 or 2 dimensions.")
+        raise ValueError('Input tensor must have either 1 or 2 dimensions.')
 
 
 class MetricEngine:
@@ -119,37 +120,37 @@ class MetricEngine:
 
     def __init__(self, graph_string=None):
         self._OPS = {
-            "ABS": torch.abs,
-            "SUM": lambda x: x / torch.sum(x, dim=0, keepdim=True).expand_as(x),
-            "SQRT": torch.sqrt,
-            "LOG": lambda x: torch.log(x + 1e-9),
-            "MMS": lambda x: (x - torch.min(x)) / (torch.max(x) - torch.min(x) + 1e-9),
-            "Z_SCALE": lambda x: (x - torch.mean(x)) / (torch.std(x) + 1e-9),
-            "MEAN": fun5_mean,
-            "STANDARDIZE": fun1_standardize,
-            "RIA": fun2_ria,
-            "LOG_PLUS_ONE": fun3_log_1,
-            "SIGMOID": torch.sigmoid,
-            "TANH": torch.tanh,
+            'ABS': torch.abs,
+            'SUM': lambda x: x / torch.sum(x, dim=0, keepdim=True).expand_as(x),
+            'SQRT': torch.sqrt,
+            'LOG': lambda x: torch.log(x + 1e-9),
+            'MMS': lambda x: (x - torch.min(x)) / (torch.max(x) - torch.min(x) + 1e-9),
+            'Z_SCALE': lambda x: (x - torch.mean(x)) / (torch.std(x) + 1e-9),
+            'MEAN': fun5_mean,
+            'STANDARDIZE': fun1_standardize,
+            'RIA': fun2_ria,
+            'LOG_PLUS_ONE': fun3_log_1,
+            'SIGMOID': torch.sigmoid,
+            'TANH': torch.tanh,
         }
 
         self._X_DICT_KEY = {
-            "ROW",
-            "COL",
-            "VAR",
-            "COL_L1",
-            "ROW_L1",
-            "ROW_MEAN",
-            "COL_MEAN",
-            "ROW_STD",
-            "COL_STD",
+            'ROW',
+            'COL',
+            'VAR',
+            'COL_L1',
+            'ROW_L1',
+            'ROW_MEAN',
+            'COL_MEAN',
+            'ROW_STD',
+            'COL_STD',
         }
         # 'OUT', 'HESSIAN'}
 
         self._graph_structure = {
-            "W_OP": None,
-            "X_TYPE": None,  # Type of X
-            "X_OP": None,
+            'W_OP': None,
+            'X_TYPE': None,  # Type of X
+            'X_OP': None,
         }
         if graph_string is not None:
             self._graph_string = graph_string
@@ -160,41 +161,41 @@ class MetricEngine:
     def _parse_graph(self, graph_string):
         """Parses the graph string into a structured computational graph"""
         # Example of string: 'W:(mean,abs)-X[row]:(sqrt,log)'
-        layers = graph_string.split("-")
+        layers = graph_string.split('-')
         for layer in layers:
-            if ":" in layer:
-                tensor_type, ops_string = layer.split(":")
-                ops_string = ops_string.strip("(").strip(")")
-                funcs = ops_string.split(",")
+            if ':' in layer:
+                tensor_type, ops_string = layer.split(':')
+                ops_string = ops_string.strip('(').strip(')')
+                funcs = ops_string.split(',')
                 layer_ops = [self._OPS[func] for func in funcs]
-                if tensor_type.startswith("W"):
-                    self._graph_structure["W_OP"] = layer_ops
-                elif tensor_type.startswith("X"):
-                    self._graph_structure["X_TYPE"] = tensor_type[
-                        tensor_type.find("[") + 1 : tensor_type.find("]")
+                if tensor_type.startswith('W'):
+                    self._graph_structure['W_OP'] = layer_ops
+                elif tensor_type.startswith('X'):
+                    self._graph_structure['X_TYPE'] = tensor_type[
+                        tensor_type.find('[') + 1: tensor_type.find(']')
                     ]
-                    self._graph_structure["X_OP"] = layer_ops
+                    self._graph_structure['X_OP'] = layer_ops
                 else:
-                    raise ValueError(f"Invalid tensor type: {tensor_type}")
+                    raise ValueError(f'Invalid tensor type: {tensor_type}')
             else:
-                raise ValueError(f"Invalid layer format: {layer}")
+                raise ValueError(f'Invalid layer format: {layer}')
 
     def compute_metric(self, W, X: dict):
         """Applies the graph of operations to W and X to compute the final metric"""
         assert (
-            self._graph_structure["X_TYPE"] in X
+            self._graph_structure['X_TYPE'] in X
         ), f"X type '{self._graph_structure['X_TYPE']}' not found in X"
 
-        if self._graph_structure["W_OP"] is not None:
-            for operation in self._graph_structure["W_OP"]:
+        if self._graph_structure['W_OP'] is not None:
+            for operation in self._graph_structure['W_OP']:
                 W = operation(W)
 
-        if self._graph_structure["X_OP"] is not None:
-            X_tensor = X[self._graph_structure["X_TYPE"]]
-            for operation in self._graph_structure["X_OP"]:
+        if self._graph_structure['X_OP'] is not None:
+            X_tensor = X[self._graph_structure['X_TYPE']]
+            for operation in self._graph_structure['X_OP']:
                 X_tensor = operation(X_tensor)
         else:
-            X_tensor = X[self._graph_structure["X_TYPE"]]
+            X_tensor = X[self._graph_structure['X_TYPE']]
 
         return W * X_tensor
 
@@ -206,43 +207,45 @@ class MetricEngine:
         return self._graph_string
 
     def __repr__(self) -> str:
-        return f"MetricEngine({self._graph_string})"
+        return f'MetricEngine({self._graph_string})'
 
     def generate_random_graph(self):
         """Generates a random graph string"""
         layers = []
-        tensor_types = ["W"] + ["X"]
+        tensor_types = ['W'] + ['X']
         for tensor_type in tensor_types:
-            if tensor_type == "X" and len(self._X_DICT_KEY) > 0:
-                ops = ",".join(
-                    random.choices(list(self._OPS.keys()), k=random.randint(1, 4))
+            if tensor_type == 'X' and len(self._X_DICT_KEY) > 0:
+                ops = ','.join(
+                    random.choices(list(self._OPS.keys()),
+                                   k=random.randint(1, 4))
                 )
-                tensor_type = f"{tensor_type}[{random.choice(list(self._X_DICT_KEY))}]"
-            elif tensor_type == "W" and len(self._OPS) > 0:
-                ops = ",".join(
-                    random.choices(list(self._OPS.keys()), k=random.randint(1, 4))
+                tensor_type = f'{tensor_type}[{random.choice(list(self._X_DICT_KEY))}]'
+            elif tensor_type == 'W' and len(self._OPS) > 0:
+                ops = ','.join(
+                    random.choices(list(self._OPS.keys()),
+                                   k=random.randint(1, 4))
                 )
             else:
                 raise ValueError(
-                    "Cannot generate random graph: empty _OPS or _X_DICT_KEY"
+                    'Cannot generate random graph: empty _OPS or _X_DICT_KEY'
                 )
-            layer_string = f"{tensor_type}:({ops})"
+            layer_string = f'{tensor_type}:({ops})'
             layers.append(layer_string)
-        graph_string = "-".join(layers)
-        print("DEBUG:", graph_string)
+        graph_string = '-'.join(layers)
+        print('DEBUG:', graph_string)
         self._parse_graph(graph_string)
         return graph_string
 
     def save_json(self, json_path=None):
-        assert json_path is not None, "Path must not be None"
-        assert json_path.endswith(".json"), "Path must end with .json"
+        assert json_path is not None, 'Path must not be None'
+        assert json_path.endswith('.json'), 'Path must end with .json'
         # save self._graph_structure to a json file
-        with open(json_path, "w") as f:
+        with open(json_path, 'w') as f:
             json.dump(self._graph_structure, f)
 
     def load_json(self, json_path=None):
-        assert json_path is not None, "Path must not be None"
-        assert json_path.endswith(".json"), "Path must end with .json"
+        assert json_path is not None, 'Path must not be None'
+        assert json_path.endswith('.json'), 'Path must end with .json'
         # load self._graph_structure from a json file
-        with open(json_path, "r") as f:
+        with open(json_path, 'r') as f:
             self._graph_structure = json.load(f)
