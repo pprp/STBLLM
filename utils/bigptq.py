@@ -19,7 +19,9 @@ BRAGPTQ uses structural mask to distinguish outliers and other data, and takes a
 
 
 class BRAGPTQ:
-    def __init__(self, layer, braq_quantizer, salient_metric, disable_gptq=False, engine=None):
+    def __init__(
+        self, layer, braq_quantizer, salient_metric, disable_gptq=False, engine=None
+    ):
         self.layer = layer
         self.dev = self.layer.weight.device
         W = layer.weight.data.clone()
@@ -34,8 +36,8 @@ class BRAGPTQ:
         self.braq_quantizer = braq_quantizer
         self.salient_metric = salient_metric  # "magnitude" or "hessian"
         self.disable_gptq = disable_gptq
-        
-        # ADD 
+
+        # ADD
         # activation
         self.scaler_row = torch.zeros((self.columns), device=self.dev)
         self.scaler_var = torch.zeros((self.columns), device=self.dev)
@@ -48,14 +50,14 @@ class BRAGPTQ:
         self.scaler_row_std = torch.zeros((self.columns), device=self.dev)
         self.scaler_col_mean = torch.zeros((self.rows), device=self.dev)
         self.scaler_col_std = torch.zeros((self.rows), device=self.dev)
-        
-        self.engine = engine 
+
+        self.engine = engine
 
     def add_batch(self, inp, out, blocksize=1024):
         if DEBUG:
             self.inp1 = inp
             self.out1 = out
-            
+
         if len(inp.shape) == 2:
             inp = inp.unsqueeze(0)
             out = out.unsqueeze(0)
@@ -68,7 +70,7 @@ class BRAGPTQ:
                 out = out.reshape((-1, out.shape[-1]))
             inp = inp.t()
             out = out.t()
-        
+
         # ADD
         self.scaler_var *= self.nsamples / (self.nsamples + tmp)
         self.scaler_col *= self.nsamples / (self.nsamples + tmp)
@@ -76,18 +78,18 @@ class BRAGPTQ:
 
         self.scaler_row_l1 *= self.nsamples / (self.nsamples + tmp)
         self.scaler_col_l1 *= self.nsamples / (self.nsamples + tmp)
-        
+
         self.scaler_row_mean *= self.nsamples / (self.nsamples + tmp)
         self.scaler_row_std *= self.nsamples / (self.nsamples + tmp)
         self.scaler_col_mean *= self.nsamples / (self.nsamples + tmp)
         self.scaler_col_std *= self.nsamples / (self.nsamples + tmp)
-        
+
         self.H *= self.nsamples / (self.nsamples + tmp)
-        
+
         self.nsamples += tmp
         inp = math.sqrt(2 / self.nsamples) * inp.float()
         self.H += inp.matmul(inp.t())
-        
+
         # ADD
         self.scaler_var += torch.var(inp, dim=1) / self.nsamples
         self.scaler_col += torch.norm(out, p=2, dim=1) ** 2 / self.nsamples
@@ -95,7 +97,7 @@ class BRAGPTQ:
 
         self.scaler_row_l1 += torch.mean(torch.abs(inp), dim=1) / self.nsamples
         self.scaler_col_l1 += torch.mean(torch.abs(out), dim=1) / self.nsamples
-        
+
         self.scaler_row_mean += (
             torch.mean(torch.abs(inp) / torch.sum(torch.abs(inp), dim=0), dim=1)
             / self.nsamples
@@ -106,7 +108,6 @@ class BRAGPTQ:
             / self.nsamples
         )
         self.scaler_col_std += torch.std(out, dim=1) ** 2 / self.nsamples
-
 
     def fasterquant(
         self,
@@ -130,7 +131,7 @@ class BRAGPTQ:
             "COL_MEAN": self.scaler_col_mean.reshape((1, -1)),
             "COL_STD": self.scaler_col_std.reshape((1, -1)),
         }
-        
+
         if isinstance(self.layer, nn.Conv2d):
             W = W.flatten(1)
         if isinstance(self.layer, transformers.Conv1D):
@@ -165,24 +166,23 @@ class BRAGPTQ:
                 .unsqueeze(0)
                 .repeat_interleave(partition, dim=0)
             )
-            
+
             sub_x_dict = {k: v[:, st:ed] for k, v in X_dict.items()}
-            
+
             mask1, mask2, mask3, mask4 = structural_guassian_distribution(
                 W[:, st:ed], H[st:ed, st:ed], sub_x_dict, self.salient_metric, 50
             )
             mask[0] = mask1
             mask[1] = mask2
             mask[2] = mask3
-            mask[3] = mask4 
-            
+            mask[3] = mask4
+
             # mask1, mask2, mask3 = structural_guassian_distribution(
             #     W[:, st:ed], H[st:ed, st:ed], sub_x_dict, self.salient_metric, 50, self.engine
             # )
             # mask[0] = mask1
             # mask[1] = mask2
             # mask[2] = mask3
-            
 
             assert self.braq_quantizer.groupsize % blocksize == 0
 

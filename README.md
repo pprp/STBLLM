@@ -4,7 +4,6 @@ Peijie Dong$^{1,\dagger}$, Lujun Li$^{2,\dagger}$, Yuedong Zhong$^{3}$, Dayou Du
 
 $^{1}$ HKUST(GZ)    $^{2}$ HKUST    $^{3}$ SYSU    $^{4}$ HKBU    $^{5}$ HIT(SZ)
 
-
 ## News
 
 - [2025/4] *STBLLM* source code is open now!
@@ -46,51 +45,21 @@ python3 run.py huggyllama/llama-7b c4 braq --blocksize 128 --salient_metric hess
 python3 run.py lmsys/vicuna-7b-v1.5 c4 braq --blocksize 128 --salient_metric hessian
 ```
 
-#### 
+## Acknowledgements
 
-## Results
+We would like to acknowledge and thank the following works that inspired and contributed to this project:
 
-- STBLLM  achieve superior perplexity performance on Wikitext2 datasets  within only an average of **1.11** bit-width weights OPT families.
+Here’s the updated list with the correct GitHub links for **RIA** and **OWL**:  
 
-![intuition](imgs/opt_wiki_results.png)
+- [**BiLLM**](https://github.com/Aaronhuang-778/BiLLM): First Post-Training Quantization Framework for Binarized Large Language Models 
+- [**GPTQ**](https://github.com/IST-DASLab/gptq): Accurate Post-training Compression for Generative Pretrained Transformers  
+- [**AWQ**](https://github.com/mit-han-lab/llm-awq): Activation-aware Weight Quantization for LLM Compression and Acceleration  
+- [**PB-LLM**](https://github.com/hahnyuan/PB-LLM): Partially Binarized Large Language Models  
+- [**SparseGPT**](https://github.com/IST-DASLab/sparsegpt): Efficient Sparsification Approach for Large Language Models  
+- [**Wanda**](https://github.com/locuslab/wanda): Weight-Based Pruning for Neural Networks  
+- [**RIA**](https://github.com/biomedical-cybernetics/Relative-importance-and-activation-pruning): Relative Importance and Activation Pruning for Large Language Models
+- [**OWL**](https://github.com/luuyin/OWL): Optimized Layer-wise assignment for Efficient LLMs  
 
-- STBLLM  achieve superior perplexity performance on Wikitext2 datasets  within only an average of **1.09** bit-width weights LLaMA families and **1.08** bit-width weights LLaMA2 families.
-
-![intuition](imgs/llama_wiki_results.png)
-
-- We also evaluated the performance of *STBLLM* on PTB and C4 datasets. 
-
-![intuition](imgs/ptb1.png)
-
-![intuition](imgs/ptb2.png)
-
-- We further evaluated *STBLLM* on 7 zero-shot dataset to give extensive insight on  binarization LLMs
-
-  ![intuition](imgs/zero_shot.png)
-
-- STBLLM  achieve superior perplexity performance on Wikitext2 datasets  within only an average of **1.10** bit-width weights Vicuna families (instruction fine-tune models).
-
-![intuition](imgs/vicuna.png)
-
-## Related Project
-
-
-[GPTQ: Accurate Post-training Compression for Generative Pretrained Transformers](https://github.com/IST-DASLab/gptq)
-
-[PB-LLM: Partially Binarized Large Language Models](https://github.com/hahnyuan/PB-LLM)
-
-[AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration](https://github.com/mit-han-lab/llm-awq)
-
-
-
-
-## Acknowledgements 
-
-SparseGPT:
-Wanda:
-STBLLM: 
-RIA: 
-OWL: 
 
 ## Citation
 

@@ -116,6 +116,7 @@ class MetricEngine:
         pengine = MetricEngine("W:(ABS,SUM)-X[ROW]:(SQRT,LOG)")
         metric = pengine.compute_metric(weight_tensor, aux_tensor_dict)
     """
+
     def __init__(self, graph_string=None):
         self._OPS = {
             "ABS": torch.abs,

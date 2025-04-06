@@ -100,9 +100,9 @@ def prepare_calibration_input(model, dataloader, device):
     use_cache = model.config.use_cache
     model.config.use_cache = False
 
-    if hasattr(model.model, "decoder"): #OPT
-        layers = model.model.decoder.layers 
-    else:    
+    if hasattr(model.model, "decoder"):  # OPT
+        layers = model.model.decoder.layers
+    else:
         layers = model.model.layers
 
     # dev = model.hf_device_map["model.embed_tokens"]
@@ -128,9 +128,11 @@ def prepare_calibration_input(model, dataloader, device):
             cache["position_ids"] = kwargs["position_ids"]
             raise ValueError
 
-    if hasattr(model.model, 'decoder'):
+    if hasattr(model.model, "decoder"):
         model.model.decoder.embed_tokens = model.model.decoder.embed_tokens.to(device)
-        model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(device)
+        model.model.decoder.embed_positions = model.model.decoder.embed_positions.to(
+            device
+        )
     else:
         model.model.embed_tokens = model.model.embed_tokens.to(device)
         model.model.norm = model.model.norm.to(device)
@@ -219,7 +221,10 @@ def prune_wanda(
         layer = layers[i]
         subset = find_layers(layer)
 
-        if hasattr(model, "hf_device_map") and f"model.layers.{i}" in model.hf_device_map:
+        if (
+            hasattr(model, "hf_device_map")
+            and f"model.layers.{i}" in model.hf_device_map
+        ):
             ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
             dev = model.hf_device_map[f"model.layers.{i}"]
             inps, outs, attention_mask, position_ids = (
@@ -943,7 +948,11 @@ def prune_ria_outlier_structure_special(
 
     print("dataset loading complete")
     with torch.no_grad():
-        if "llama" in args.model.lower() or "mistral" in args.model.lower() or "qwen" in args.model.lower():
+        if (
+            "llama" in args.model.lower()
+            or "mistral" in args.model.lower()
+            or "qwen" in args.model.lower()
+        ):
             inps, outs, attention_mask, position_ids = prepare_calibration_input(
                 model, dataloader, device
             )
@@ -961,8 +970,10 @@ def prune_ria_outlier_structure_special(
         layer = layers[i]
         subset = find_layers(layer)
 
-        if hasattr(model, "hf_device_map") and \
-            f"model.layers.{i}" in model.hf_device_map:  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
+        if (
+            hasattr(model, "hf_device_map")
+            and f"model.layers.{i}" in model.hf_device_map
+        ):  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
             dev = model.hf_device_map[f"model.layers.{i}"]
             inps, outs, attention_mask, position_ids = (
                 inps.to(dev),
@@ -971,7 +982,7 @@ def prune_ria_outlier_structure_special(
                 position_ids.to(dev),
             )
         else:
-            dev = 'cuda'
+            dev = "cuda"
             inps, outs, attention_mask, position_ids = (
                 inps.to(dev),
                 outs.to(dev),
@@ -1105,8 +1116,10 @@ def prune_ria_outlier_structure_special(
     for i in range(len(layers)):
         layer = layers[i]
         subset = find_layers(layer)
-        if hasattr(model, 'hf_device_map') and \
-            f"model.layers.{i}" in model.hf_device_map:  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
+        if (
+            hasattr(model, "hf_device_map")
+            and f"model.layers.{i}" in model.hf_device_map
+        ):  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
             dev = model.hf_device_map[f"model.layers.{i}"]
             inps, outs, attention_mask, position_ids = (
                 inps.to(dev),
@@ -1299,8 +1312,10 @@ def prune_advanced_ria(
         layer = layers[i]
         subset = find_layers(layer)
 
-        if hasattr(model, 'hf_device_map') and \
-            f"model.layers.{i}" in model.hf_device_map:  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
+        if (
+            hasattr(model, "hf_device_map")
+            and f"model.layers.{i}" in model.hf_device_map
+        ):  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
             dev = model.hf_device_map[f"model.layers.{i}"]
             inps, outs, attention_mask, position_ids = (
                 inps.to(dev),
@@ -1433,8 +1448,10 @@ def prune_ablate(args, model, tokenizer, dev, prune_n=0, prune_m=0):
 
     for i in range(len(layers)):
         layer = layers[i]
-        if hasattr(model, 'hf_device_map') and \
-            f"model.layers.{i}" in model.hf_device_map: 
+        if (
+            hasattr(model, "hf_device_map")
+            and f"model.layers.{i}" in model.hf_device_map
+        ):
             dev = model.hf_device_map[f"model.layers.{i}"]
             print(f"layer {i} device {dev}")
             inps, outs, attention_mask, position_ids = (
@@ -1550,8 +1567,10 @@ def prune_pruner_zero(
         layer = layers[i]
         subset = find_layers(layer)
 
-        if hasattr(model, 'hf_device_map') and \
-            f"model.layers.{i}" in model.hf_device_map:   ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
+        if (
+            hasattr(model, "hf_device_map")
+            and f"model.layers.{i}" in model.hf_device_map
+        ):  ## handle the case for llama-30B and llama-65B, when the device map has multiple GPUs;
             dev = model.hf_device_map[f"model.layers.{i}"]
             inps, outs, attention_mask, position_ids = (
                 inps.to(dev),

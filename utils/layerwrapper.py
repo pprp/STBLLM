@@ -226,6 +226,7 @@ class WrappedGPT:
 
         if static_groups:
             import copy
+
             groups = []
             for i in range(0, self.columns, groupsize):
                 quantizer = copy.deepcopy(self.quantizer)
@@ -335,7 +336,7 @@ class WrappedGPT:
         H = torch.cholesky_inverse(H)
         H = torch.linalg.cholesky(H, upper=True)
         Hinv = H
-        
+
         mask = None
         mask = torch.zeros_like(W, dtype=torch.bool)
         for groupi in range(self.low_quantizer.n_groups):
@@ -554,9 +555,10 @@ class WrappedGPT:
         torch.cuda.empty_cache()
         return {"error": torch.sum(Losses).item()}
 
-# NOTE: PB-LLM + Bell-ship Spliting
-    def lowhightquant_v2(self, low_frac, blocksize=128, percdamp=0.01,
-                         partition=3, orders=(1, 1, 2)):
+    # NOTE: PB-LLM + Bell-ship Spliting
+    def lowhightquant_v2(
+        self, low_frac, blocksize=128, percdamp=0.01, partition=3, orders=(1, 1, 2)
+    ):
         W = self.layer.weight.data.clone()
         if isinstance(self.layer, nn.Conv2d):
             W = W.flatten(1)
@@ -584,7 +586,7 @@ class WrappedGPT:
         H = torch.cholesky_inverse(H)
         H = torch.linalg.cholesky(H, upper=True)
         Hinv = H
-        
+
         # mask = None
         # mask = torch.zeros_like(W, dtype=torch.bool)
         # for groupi in range(self.low_quantizer.n_groups):
@@ -613,7 +615,7 @@ class WrappedGPT:
         for blocki, col_st in enumerate(range(0, self.columns, blocksize)):
             col_ed = min(col_st + blocksize, self.columns)
             n_cols = col_ed - col_st
-            
+
             st = col_st
             ed = col_ed
             mask = (
@@ -629,7 +631,7 @@ class WrappedGPT:
             mask[2] = mask3
 
             assert self.low_quantizer.groupsize % blocksize == 0
-            
+
             if self.disable_gptq:
                 # RTN
                 w = W[:, col_st:col_ed]
@@ -641,9 +643,7 @@ class WrappedGPT:
                     q_part_groups_low.append(
                         self.low_quantizer.quantize(w, mask[i], order=orders[i])
                     )
-                    q_part_groups_high.append(
-                        self.high_quantizer.quantize(w, ~mask[i])
-                    )
+                    q_part_groups_high.append(self.high_quantizer.quantize(w, ~mask[i]))
 
                 q = torch.zeros_like(w)
                 for j in range(mask.shape[0]):

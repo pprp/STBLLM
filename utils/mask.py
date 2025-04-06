@@ -18,6 +18,7 @@ Generate the structural mask on the basis of the split border
 
 #     return mask1, mask2
 
+
 # 4mask
 def generate_structural_mask(origin_matrix, mask4, braq1_border, braq2_border):
     mask1_2_3 = ~mask4
