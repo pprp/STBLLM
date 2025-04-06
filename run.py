@@ -25,8 +25,6 @@ from utils.quant import GPTQQuantizer, LowQuantizer, HighQuantizer
 from utils.autometric import MetricEngine
 
 
-# from autozc.structures.tree_engine import GPTree
-
 print("torch", version("torch"))
 print("transformers", version("transformers"))
 print("accelerate", version("accelerate"))
@@ -488,7 +486,6 @@ if __name__ == "__main__":
             "ablate_mag_iter",
             "ablate_wanda_iter",
             "search",
-            "pruner-zero",
             "ablate_prunerzero_seq",
             "ablate_prunerzero_iter",
             "ri",

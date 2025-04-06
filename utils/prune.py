@@ -11,8 +11,6 @@ from torch.sparse import to_sparse_semi_structured, SparseSemiStructuredTensor
 from utils.ablate import AblateGPT
 from utils.binary import Binarization
 
-# from autozc.structures.tree_engine import GPTree
-
 
 def lexsort(keys, dim=-1):
     idx = keys[0].argsort(dim=dim, stable=True)

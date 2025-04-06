@@ -19,13 +19,13 @@ MODEL_NAME_LIST=(
 
 SPARSITY_RATIO_LIST=(
     0.25
-    # 0.375
+    0.375
     0.5
 )
 
 SPARSITY_TYPE_LIST=(
     "2:8"
-    # "3:8"
+    "3:8"
     "4:8"
 )
 

@@ -144,7 +144,6 @@ if __name__ == "__main__":
             "ablate_mag_iter",
             "ablate_wanda_iter",
             "search",
-            "pruner-zero",
             "ablate_prunerzero_seq",
             "ablate_prunerzero_iter",
             "ri",
@@ -244,9 +243,6 @@ if __name__ == "__main__":
                 prune_gblm(
                     args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
                 )
-            # elif "pruner-zero" in args.prune_method:
-            #     engine = GPTree.load_tree('./data/best_tree.json')
-            #     prune_pruner_zero(args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m, engine=engine)
             elif "advanced_ria" in args.prune_method:
                 prune_advanced_ria(
                     args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m

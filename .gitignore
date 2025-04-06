@@ -10,3 +10,4 @@ TinyLlama/*
 gradients/*
 lm-evaluation-harness/*
 plots/*
+logs/

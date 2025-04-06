@@ -1,7 +1,6 @@
 import math
 import time
 
-# from exceptiongroup import catch
 import torch
 import torch.nn as nn
 import transformers
@@ -115,11 +114,8 @@ class BRAGPTQ:
         percdamp=0.01,
         partition=4,
         orders=(1, 1, 1, 2),
-        # partition=3,
-        # orders=(1, 1, 2),
     ):
         W = self.layer.weight.data.clone()
-        # X = self.scaler_row.reshape((1, -1))
         X_dict = {
             "ROW": self.scaler_row.reshape((1, -1)),
             "COL": self.scaler_col.reshape((1, -1)),
@@ -188,7 +184,6 @@ class BRAGPTQ:
 
             if self.disable_gptq:
                 # RTN
-                # print("RTN")
                 w = W[:, col_st:col_ed]
 
                 # from low to high group
