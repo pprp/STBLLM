@@ -1,8 +1,17 @@
 # STBLLM: Pushing the Limit of Post-Training Quantization for LLMs [[PDF]](https://arxiv.org/abs/2408.01803)
 
-Peijie Dong$^{1,\dagger}$, Lujun Li$^{2,\dagger}$, Yuedong Zhong$^{3}$, Dayou Du$^{1}$, Ruibo Fan$^{1}$, Yuhan Chen$^{1}$, Zhenheng Tang$^{1,4}$, Qiang Wang$^{5}$, Wei Xue$^{2}$, Yike Guo$^{2,*}$, Xiaowen Chu$^{1,2*}$
+Peijie Dong $^{1,\dagger}$, Lujun Li $^{2,\dagger}$, Yuedong Zhong $^{3}$, Dayou Du $^{1}$, Ruibo Fan $^{1}$, Yuhan Chen $^{1}$, Zhenheng Tang $^{1,4}$, Qiang Wang $^{5}$, Wei Xue $^{2}$, Yike Guo $^{2,*}$, Xiaowen Chu $^{1,2*}$
 
 $^{1}$ HKUST(GZ)    $^{2}$ HKUST    $^{3}$ SYSU    $^{4}$ HKBU    $^{5}$ HIT(SZ)
+
+![STBLLM](./assets/main.png)
+
+![STBLLM](./assets/performance.png)
+
+## Abstract 
+
+In this paper, we present the first structural binarization method for LLM compression to less than 1-bit precision. Although LLMs have achieved remarkable performance, their memory-bound nature during the inference stage hinders the adoption of resource-constrained devices. Reducing weights to 1-bit precision through binarization substantially enhances computational efficiency. We observe that some weights in binarized LLMs can be randomly flipped without significant performance degradation, suggesting the potential for further compression. To exploit this, our STBLLM employs an N:M sparsity technique to achieve structural binarization of the weights. Specifically, we introduce a novel Standardized Importance (SI) metric, which considers weight magnitude and input feature norm to more accurately assess weight significance. Then, we propose a layer-wise approach, allowing different layers of the LLM to be sparsified with varying N:M ratios, thereby balancing compression and accuracy. Furthermore, we implement a fine-grained grouping strategy for less important weights, applying distinct quantization schemes to sparse, intermediate, and dense regions. Finally, we design a specialized CUDA kernel to support structural binarization. We conduct extensive experiments on LLaMA-1/2/3, OPT family, and Mistral to evaluate the effectiveness of STBLLM. The results demonstrate that our approach performs better than other compressed binarization LLM methods while significantly reducing memory requirements.
+
 
 ## News
 
@@ -21,30 +30,33 @@ pip install -r requirements.txt
 * `datasets`: tested on v2.14.6
 * `huggingface-hub`: tested on v0.16.4
 
-## LLMs Binarization
+## Quick Start
 
-#### Binarization for OPT families
-
-```
-python3 run.py facebook/opt-6.7b c4 braq --blocksize 128 --salient_metric hessian
-```
-
-
-#### Binarization for LLaMA families
+To run STBLLM on your model, use the following command:
 
 ```
-python3 run.py meta-llama/Llama-2-7b-hf c4 braq --blocksize 128 --salient_metric hessian
-```
-or
-```
-python3 run.py huggyllama/llama-7b c4 braq --blocksize 128 --salient_metric hessian
+python3 run.py ${MODEL_NAME} ${DATASET_NAME} braq --blocksize 128 \
+    --salient_metric hessian \
+    --prune_method si_structure \
+    --reconstruction \
 ```
 
-#### Binarization for Vicuna families (Instruction Fine-tuning Models)
+To replicate the results of Llama2 under 4:8 sparsity, use the scripts in the demo:
 
 ```
-python3 run.py lmsys/vicuna-7b-v1.5 c4 braq --blocksize 128 --salient_metric hessian
+bash scripts/run_demo.sh
 ```
+
+We also provide the log of above scripts for you to compare [here](./logs/stbllm_series/stbllm_wikitext2_si-structure-4:8-0.5-wrec_hessian-4mask-billm-160_main.log)
+
+## Performance
+
+![result1](./assets/result1.png)
+
+![result2](./assets/result2.png)
+
+![result3](./assets/result3.png)
+
 
 ## Acknowledgements
 
