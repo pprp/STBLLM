@@ -12,7 +12,6 @@ from utils.modelutils import find_layers
 from utils.prune import (
     check_sparsity,
     find_layers,
-    prune_ablate,
     prune_gblm,
     prune_magnitude,
     prune_pruner_zero,
@@ -492,17 +491,11 @@ if __name__ == '__main__':
             'magnitude',
             'wanda',
             'sparsegpt',
-            'ablate_mag_seq',
-            'ablate_wanda_seq',
-            'ablate_mag_iter',
-            'ablate_wanda_iter',
             'search',
-            'ablate_prunerzero_seq',
-            'ablate_prunerzero_iter',
             'ri',
             'ria',
             'gblm',
-            'ria_structure',
+            'si_structure',
         ],
     )
     parser.add_argument(
@@ -660,10 +653,6 @@ if __name__ == '__main__':
                 prune_sparsegpt(
                     args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
                 )
-            elif 'ablate' in args.prune_method:
-                prune_ablate(
-                    args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
-                )
             elif 'ria' == args.prune_method:
                 prune_ria(
                     args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
@@ -676,7 +665,7 @@ if __name__ == '__main__':
                 prune_gblm(
                     args, model, dataloader, device, prune_n=prune_n, prune_m=prune_m
                 )
-            elif 'ria_structure' in args.prune_method:
+            elif 'si_structure' in args.prune_method:
                 prune_ria_outlier_structure_special(
                     args, model, tokenizer, device, prune_n=prune_n, prune_m=prune_m
                 )
