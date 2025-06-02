@@ -6,7 +6,8 @@ $^{1}$ HKUST(GZ)    $^{2}$ HKUST    $^{3}$ SYSU    $^{4}$ HKBU    $^{5}$ HIT(SZ)
 
 ## News
 
-- [2025/4] *STBLLM* source code is open now!
+- [2025/6] *STBLLM* source code is open now!
+- [2025/6] Due to patent application and other reasons, the kernel will be released later.
 
 ## Dependencies
 
@@ -15,7 +16,7 @@ conda create -n stbllm python==3.10
 pip install -r requirements.txt
 ```
 
-* `torch`: tested on v26.0
+* `torch`: tested on v2.6.0
 * `transformers`: tested on v4.35.0
 * `datasets`: tested on v2.14.6
 * `huggingface-hub`: tested on v0.16.4
