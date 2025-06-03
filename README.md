@@ -1,4 +1,4 @@
-# STBLLM: Pushing the Limit of Post-Training Quantization for LLMs [[PDF]](https://arxiv.org/abs/2408.01803)
+# STBLLM: Breaking the 1-Bit Barrier with Structured Binary LLMs [[PDF]](https://arxiv.org/abs/2408.01803)
 
 Peijie Dong $^{1,\dagger}$, Lujun Li $^{2,\dagger}$, Yuedong Zhong $^{3}$, Dayou Du $^{1}$, Ruibo Fan $^{1}$, Yuhan Chen $^{1}$, Zhenheng Tang $^{1,4}$, Qiang Wang $^{5}$, Wei Xue $^{2}$, Yike Guo $^{2,*}$, Xiaowen Chu $^{1,2*}$
 
